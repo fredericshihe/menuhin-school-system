@@ -1,0 +1,2410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>耶胡迪梅纽因学校考勤同步系统</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<style>
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2ecc71;
+    --warning-color: #f39c12;
+    --danger-color: #e74c3c;
+    --success-color: #27ae60;
+    --background-color: #f8f9fa;
+    --text-color: #2c3e50;
+    --border-color: #dee2e6;
+    --shadow: 0 2px 10px rgba(0,0,0,0.1);
+    --radius: 12px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 头部样式 */
+.header {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    padding: 30px 0;
+    margin-bottom: 30px;
+    border-radius: var(--radius);
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+
+.header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    font-weight: 300;
+}
+
+.header .subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+/* 连接状态指示器 */
+.connection-status {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 10px 15px;
+    border-radius: 25px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 1000;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.connection-status.online {
+    background: var(--success-color);
+    color: white;
+}
+
+.connection-status.offline {
+    background: var(--danger-color);
+    color: white;
+}
+
+.connection-status.syncing {
+    background: var(--warning-color);
+    color: white;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* 主导航 */
+.nav-tabs {
+    display: flex;
+    background: white;
+    border-radius: var(--radius);
+    padding: 5px;
+    margin-bottom: 30px;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+}
+
+.nav-tab {
+    flex: 1;
+    padding: 15px 20px;
+    text-align: center;
+    background: transparent;
+    border: none;
+    border-radius: calc(var(--radius) - 5px);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 16px;
+    font-weight: 500;
+    white-space: nowrap;
+    min-width: 150px;
+}
+
+.nav-tab:hover {
+    background: rgba(52, 152, 219, 0.1);
+}
+
+.nav-tab.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* 卡片容器 */
+.card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--primary-color);
+}
+
+.card.success {
+    border-left-color: var(--success-color);
+}
+
+.card.warning {
+    border-left-color: var(--warning-color);
+}
+
+.card.danger {
+    border-left-color: var(--danger-color);
+}
+
+/* 统计面板 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    padding: 25px;
+    border-radius: var(--radius);
+    text-align: center;
+    box-shadow: var(--shadow);
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-number {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.stat-label {
+    font-size: 1.1rem;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.stat-description {
+    font-size: 0.9rem;
+    color: #999;
+}
+
+.stat-card.present .stat-number { color: var(--success-color); }
+.stat-card.absent .stat-number { color: var(--danger-color); }
+.stat-card.excused .stat-number { color: var(--warning-color); }
+.stat-card.total .stat-number { color: var(--primary-color); }
+
+/* 学生列表 */
+.student-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.student-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+    border-left: 4px solid #ddd;
+}
+
+.student-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.student-card.present { border-left-color: var(--success-color); }
+.student-card.absent { border-left-color: var(--danger-color); }
+.student-card.excused { border-left-color: var(--warning-color); }
+.student-card.low-efficiency { border-left-color: #f39c12; }
+.student-card.practicing-unscheduled { 
+    border-left-color: #9b59b6; 
+    background: linear-gradient(135deg, #f8f4ff, #ffffff);
+}
+
+.student-status.practicing-unscheduled { 
+    background: #e8d5f2; 
+    color: #6a1b9a; 
+}
+
+.stat-card.unscheduled .stat-number { 
+    color: #9b59b6; 
+}
+
+.student-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.student-name {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.student-status {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.student-status.present { background: #d4edda; color: #155724; }
+.student-status.absent { background: #f8d7da; color: #721c24; }
+.student-status.excused { background: #fff3cd; color: #856404; }
+.student-status.low-efficiency { background: #ffeaa7; color: #b06000; }
+
+.student-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-label {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 3px;
+}
+
+.detail-value {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.attendance-history {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.history-title {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.history-timeline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.history-day {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.history-day.present { background: var(--success-color); color: white; }
+.history-day.absent { background: var(--danger-color); color: white; }
+.history-day.excused { background: var(--warning-color); color: white; }
+.history-day.no-data { background: #f8f9fa; color: #999; }
+
+.history-day:hover {
+    transform: scale(1.1);
+}
+/* 在现有CSS中添加 */
+.student-card.weekend { 
+    border-left-color: #95a5a6; 
+    background: linear-gradient(135deg, #f8f9fa, #ffffff);
+}
+
+.student-status.weekend { 
+    background: #ecf0f1; 
+    color: #2c3e50; 
+}
+
+.stat-card.weekend .stat-number { 
+    color: #95a5a6; 
+}
+/* 实时练琴状态样式 */
+.practice-status-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+    border-left: 4px solid #9b59b6;
+    background: linear-gradient(135deg, #f8f4ff, #ffffff);
+    position: relative;
+}
+
+.practice-status-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.practice-status-card .practice-indicator {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 12px;
+    height: 12px;
+    background: #27ae60;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.practice-status-card .student-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.practice-status-card .student-name {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.practice-status-card .practice-duration {
+    background: #e8d5f2;
+    color: #6a1b9a;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.practice-status-card .practice-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.practice-status-card .detail-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.practice-status-card .detail-label {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 3px;
+}
+
+.practice-status-card .detail-value {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.practice-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+}
+
+.practice-empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.practice-empty-state-title {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+    color: var(--text-color);
+}
+
+.practice-empty-state-description {
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* 筛选器 */
+.filters {
+    background: white;
+    padding: 20px;
+    border-radius: var(--radius);
+    margin-bottom: 25px;
+    box-shadow: var(--shadow);
+}
+
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 150px;
+}
+
+.filter-label {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.filter-select, .filter-input {
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.filter-select:focus, .filter-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+/* 操作按钮 */
+.action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2980b9;
+}
+
+.btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.btn-success:hover {
+    background: #229954;
+}
+
+.btn-warning {
+    background: var(--warning-color);
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #e67e22;
+}
+
+.btn-danger {
+    background: var(--danger-color);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c0392b;
+}
+
+/* 模态框 */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: white;
+    border-radius: var(--radius);
+    padding: 30px;
+    max-width: 600px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    animation: slideIn 0.3s ease;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.modal-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #999;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: var(--danger-color);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* 表格样式 */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background: white;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.data-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.data-table tr:hover {
+    background: #f8f9fa;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .nav-tabs {
+        flex-direction: column;
+    }
+    
+    .nav-tab {
+        margin-bottom: 5px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .student-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .student-details {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 加载动画 */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.empty-state-title {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    color: var(--text-color);
+}
+
+.empty-state-description {
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+/* 日期选择器样式 */
+.date-picker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.date-input {
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+/* 导出按钮样式 */
+.export-options {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* 同步状态指示器 */
+.sync-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 15px;
+    background: white;
+    border-radius: 25px;
+    box-shadow: var(--shadow);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 1000;
+}
+
+.sync-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success-color);
+}
+
+.sync-dot.syncing {
+    background: var(--warning-color);
+    animation: pulse 1s infinite;
+}
+
+.sync-dot.error {
+    background: var(--danger-color);
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+    <!-- 连接状态指示器 -->
+    <div id="connectionStatus" class="connection-status offline">
+        🔴 离线模式
+    </div>
+
+    <!-- 头部 -->
+    <div class="header">
+        <h1>🎼 青岛耶胡迪梅纽因学校 </h1>
+        <div class="subtitle">学生实时考勤/练琴数据查看系统</div>
+    </div>
+
+    <!-- 导航标签 -->
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('dashboard')">📊 考勤概览</button>
+        <button class="nav-tab" onclick="switchTab('students')">👥 学生详情</button>
+        <button class="nav-tab" onclick="switchTab('reports')">📈 历史报告</button>
+        <button class="nav-tab" onclick="switchTab('sync')">🔄 数据同步</button>
+    </div>
+
+    <!-- 考勤概览标签页 -->
+    <div id="dashboardTab" class="tab-content">
+        <!-- 统计面板 -->
+        <div class="stats-grid">
+            <div class="stat-card total">
+                <div class="stat-number" id="totalStudents">0</div>
+                <div class="stat-label">总学生数</div>
+                <div class="stat-description">已登记学生</div>
+            </div>
+            <div class="stat-card present">
+                <div class="stat-number" id="presentCount">0</div>
+                <div class="stat-label">正常出勤</div>
+                <div class="stat-description">今日出勤率</div>
+            </div>
+            <div class="stat-card absent">
+                <div class="stat-number" id="absentCount">0</div>
+                <div class="stat-label">缺勤学生</div>
+                <div class="stat-description">需要关注</div>
+            </div>
+            <div class="stat-card excused">
+                <div class="stat-number" id="excusedCount">0</div>
+                <div class="stat-label">请假学生</div>
+                <div class="stat-description">已批准请假</div>
+            </div>
+        </div>
+        <!-- 实时练琴状态 -->
+        <div class="card">
+            <h3>🎹 实时练琴状态</h3>
+            <div class="date-picker">
+                <span style="color: #666; font-size: 14px;">当前时间：<span id="currentTime"></span></span>
+                <button class="btn btn-primary" onclick="refreshPracticeStatus()">
+                    <span>🔄</span> 刷新状态
+                </button>
+            </div>
+            <div id="practiceStatusContainer">
+                <div id="practiceStudentList" class="student-grid">
+                    <!-- 正在练琴的学生卡片将在这里显示 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 今日考勤快照 -->
+        <div class="card">
+            <h3>📅 今日考勤快照</h3>
+            <div class="date-picker">
+                <label for="dateSelect">选择日期：</label>
+                <input type="date" id="dateSelect" class="date-input" onchange="loadAttendanceData()">
+                <button class="btn btn-primary" onclick="refreshData()">
+                    <span>🔄</span> 刷新数据
+                </button>
+            </div>
+            <div id="todaySnapshot" class="loading">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 学生详情标签页 -->
+    <div id="studentsTab" class="tab-content" style="display: none;">
+        <!-- 筛选器 -->
+        <div class="filters">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label class="filter-label">专业筛选</label>
+                    <select id="majorFilter" class="filter-select" onchange="filterStudents()">
+                        <option value="">所有专业</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">年级筛选</label>
+                    <select id="gradeFilter" class="filter-select" onchange="filterStudents()">
+                        <option value="">所有年级</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">考勤状态</label>
+                    <select id="statusFilter" class="filter-select" onchange="filterStudents()">
+                        <option value="">所有状态</option>
+                        <option value="present">正常出勤</option>
+                        <option value="absent">缺勤</option>
+                        <option value="excused">请假</option>
+                        <option value="low-efficiency">低效出勤</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">搜索学生</label>
+                    <input type="text" id="studentSearch" class="filter-input" placeholder="输入学生姓名..." oninput="filterStudents()">
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="refreshData()">
+                <span>🔄</span> 刷新数据
+            </button>
+        </div>
+
+        <!-- 学生列表 -->
+        <div id="studentList" class="student-grid">
+            <!-- 学生卡片将在这里动态生成 -->
+        </div>
+    </div>
+
+    <!-- 历史报告标签页 -->
+    <div id="reportsTab" class="tab-content" style="display: none;">
+        <div class="card">
+            <h3>📈 考勤历史分析</h3>
+            
+            <!-- 日期范围选择 -->
+            <div class="date-picker">
+                <label for="startDate">开始日期：</label>
+                <input type="date" id="startDate" class="date-input">
+                <label for="endDate">结束日期：</label>
+                <input type="date" id="endDate" class="date-input">
+                <button class="btn btn-primary" onclick="generateReport()">
+                    <span>📊</span> 生成报告
+                </button>
+            </div>
+
+            <!-- 报告内容 -->
+            <div id="reportContent">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <div class="empty-state-title">选择日期范围生成报告</div>
+                    <div class="empty-state-description">选择开始和结束日期，然后点击"生成报告"按钮查看详细的考勤分析</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据同步标签页 -->
+    <div id="syncTab" class="tab-content" style="display: none;">
+        <div class="card">
+            <h3>🔄 数据同步管理</h3>
+            
+            <!-- 同步状态 -->
+            <div class="card success" id="syncStatus">
+                <h4>同步状态</h4>
+                <p id="syncStatusText">正在检查连接状态...</p>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="forceSyncData()">
+                        <span>🔄</span> 强制同步
+                    </button>
+                    <button class="btn btn-warning" onclick="clearLocalCache()">
+                        <span>🗑️</span> 清除缓存
+                    </button>
+                </div>
+            </div>
+
+            <!-- 同步日志 -->
+            <div class="card">
+                <h4>📋 同步日志</h4>
+                <div id="syncLogs" style="max-height: 400px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 14px;">
+                    <!-- 同步日志将在这里显示 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 同步状态指示器 -->
+    <div id="syncIndicator" class="sync-indicator">
+        <div class="sync-dot" id="syncDot"></div>
+        <span id="syncText">离线模式</span>
+    </div>
+</div>
+
+<!-- 学生详情模态框 -->
+<div id="studentDetailModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title" id="studentDetailTitle">学生详情</h3>
+            <button class="modal-close" onclick="closeModal('studentDetailModal')">&times;</button>
+        </div>
+        <div id="studentDetailContent">
+            <!-- 学生详细信息将在这里显示 -->
+        </div>
+    </div>
+</div>
+
+<script>
+// Firebase 配置
+const firebaseConfig = {
+  apiKey: "AIzaSyBfRjrAKsVUAHBl5WbBl96YONrkRe1UWUo",
+  authDomain: "menuhin-studio-system.firebaseapp.com",
+  databaseURL: "https://menuhin-studio-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "menuhin-studio-system",
+  storageBucket: "menuhin-studio-system.firebasestorage.app",
+  messagingSenderId: "218592951152",
+  appId: "1:218592951152:web:650d080726b6c44f5a2db5",
+  measurementId: "G-P49SZQTLT7"
+};
+
+// 全局变量
+let database = null;
+let isOnline = false;
+let currentTab = 'dashboard';
+let attendanceData = {};
+let studentData = {};
+let syncLogs = [];
+let rooms = [];
+
+// 初始化 Firebase
+function initFirebase() {
+    try {
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+        
+        // 监听连接状态
+        database.ref('.info/connected').on('value', (snapshot) => {
+            isOnline = snapshot.val() === true;
+            updateConnectionStatus();
+            
+            if (isOnline) {
+                addSyncLog('✅ 已连接到Firebase数据库');
+                loadInitialData();
+            } else {
+                addSyncLog('❌ 与Firebase数据库断开连接');
+            }
+        });
+        
+        // 监听考勤数据变化
+        database.ref('attendanceData').on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                attendanceData = snapshot.val();
+                addSyncLog('📥 考勤数据已更新');
+                updateDashboard();
+                updateStudentList();
+            }
+        });
+        // 🔥 新增：监听实时练琴状态变化
+        database.ref('realTimePracticeStatus').on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                handleRemoteRealTimePracticeUpdate(snapshot.val());
+            }
+        });
+        // 🔥 新增：监听琴房状态变化
+        database.ref('rooms').on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                handleRoomsUpdate(snapshot.val());
+            }
+        });
+
+        // 🔥 新增：监听实时练琴状态
+        database.ref('realTimePracticeStatus').on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                handleRealTimePracticeUpdate(snapshot.val());
+            }
+        });
+
+        
+        // 监听学生数据变化
+        database.ref('studentDatabase').on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                studentData = snapshot.val();
+                addSyncLog('📥 学生数据已更新');
+                updateFilters();
+                updateStudentList();
+            }
+        });
+        
+    } catch (error) {
+        console.error('Firebase初始化失败:', error);
+        addSyncLog('❌ Firebase初始化失败: ' + error.message);
+    }
+}
+    // 🔥 新增：处理琴房状态更新
+    function handleRoomsUpdate(roomsData) {
+        if (!roomsData || !Array.isArray(roomsData)) return;
+        
+        console.log('🏠 收到琴房状态更新:', roomsData);
+        
+        // 更新全局琴房状态
+        rooms = roomsData;
+        
+        // 提取实时练琴状态
+        const realTimePractice = {};
+        
+        roomsData.forEach(room => {
+            if (room.student && room.student !== '空闲') {
+                const studentName = room.student;
+                const now = Date.now();
+                const registerTime = new Date(room.registerTime).getTime();
+                const currentDuration = Math.floor((now - registerTime) / 1000);
+                
+                realTimePractice[studentName] = {
+                    room: room.name,
+                    startTime: room.registerTime,
+                    currentDuration: currentDuration,
+                    status: 'practicing',
+                    lastUpdated: now,
+                    syncSource: 'rooms'
+                };
+            }
+        });
+        
+        // 确保 attendanceData 存在
+        if (!attendanceData) {
+            attendanceData = {};
+        }
+        
+        // 更新实时练琴状态
+        if (!attendanceData.realTimePractice) {
+            attendanceData.realTimePractice = {};
+        }
+        
+        // 合并状态（保留现有状态，更新新状态）
+        Object.keys(realTimePractice).forEach(studentName => {
+            attendanceData.realTimePractice[studentName] = realTimePractice[studentName];
+        });
+        
+        // 清理已离开琴房的学生
+        Object.keys(attendanceData.realTimePractice).forEach(studentName => {
+            if (!realTimePractice[studentName]) {
+                delete attendanceData.realTimePractice[studentName];
+                console.log(`🧹 清理已离开琴房的学生: ${studentName}`);
+            }
+        });
+        
+        // 刷新显示
+        if (isAttendanceModalOpen) {
+            renderAttendanceList(false);
+        }
+        
+        addSyncLog('🏠 琴房状态已同步');
+    }
+
+    // 🔥 新增：处理实时练琴状态更新
+    function handleRealTimePracticeUpdate(practiceData) {
+        if (!practiceData || typeof practiceData !== 'object') return;
+        
+        console.log('🎹 收到实时练琴状态更新:', practiceData);
+        
+        // 确保 attendanceData 存在
+        if (!attendanceData) {
+            attendanceData = {};
+        }
+        
+        if (!attendanceData.realTimePractice) {
+            attendanceData.realTimePractice = {};
+        }
+        
+        let hasChanges = false;
+        
+        // 更新练琴状态
+        Object.keys(practiceData).forEach(studentName => {
+            const newStatus = practiceData[studentName];
+            const currentStatus = attendanceData.realTimePractice[studentName];
+            
+            if (!currentStatus || JSON.stringify(currentStatus) !== JSON.stringify(newStatus)) {
+                attendanceData.realTimePractice[studentName] = {
+                    ...newStatus,
+                    lastUpdated: Date.now(),
+                    syncSource: 'realTime'
+                };
+                hasChanges = true;
+            }
+        });
+        
+        // 清理不存在的状态
+        Object.keys(attendanceData.realTimePractice).forEach(studentName => {
+            if (!practiceData[studentName]) {
+                delete attendanceData.realTimePractice[studentName];
+                hasChanges = true;
+            }
+        });
+        
+        if (hasChanges) {
+            // 刷新显示
+            if (isAttendanceModalOpen) {
+                renderAttendanceList(false);
+            }
+            
+            addSyncLog('🎹 实时练琴状态已同步');
+        }
+    }
+// 🔥 新增：定期刷新实时状态（每30秒）
+setInterval(() => {
+    if (currentTab === 'dashboard' || currentTab === 'students') {
+        // 只在相关标签页时刷新
+        updateRealTimeDisplay();
+    }
+}, 30000);
+
+// 🔥 新增：更新实时显示
+function updateRealTimeDisplay() {
+    if (currentTab === 'dashboard') {
+        loadAttendanceData();
+    } else if (currentTab === 'students') {
+        loadStudentList();
+    }
+}
+
+// 🔥 修改：处理实时练琴状态更新时立即刷新显示
+function handleRemoteRealTimePracticeUpdate(practiceStatusData) {
+    if (!practiceStatusData || typeof practiceStatusData !== 'object') return;
+    
+    console.log('📥 收到实时练琴状态更新:', practiceStatusData);
+    
+    // 确保考勤数据结构存在
+    if (!attendanceData.realTimePractice) {
+        attendanceData.realTimePractice = {};
+    }
+    
+    let hasChanges = false;
+    
+    // 处理每个学生的实时状态
+    Object.keys(practiceStatusData).forEach(studentName => {
+        const remoteStatus = practiceStatusData[studentName];
+        const currentStatus = attendanceData.realTimePractice[studentName];
+        
+        if (!currentStatus || JSON.stringify(currentStatus) !== JSON.stringify(remoteStatus)) {
+            attendanceData.realTimePractice[studentName] = {
+                ...remoteStatus,
+                lastUpdated: Date.now(),
+                syncSource: 'remote'
+            };
+            hasChanges = true;
+        }
+    });
+    
+    // 清理不再存在的学生状态
+    if (attendanceData.realTimePractice) {
+        Object.keys(attendanceData.realTimePractice).forEach(studentName => {
+            if (!practiceStatusData[studentName]) {
+                delete attendanceData.realTimePractice[studentName];
+                hasChanges = true;
+            }
+        });
+    }
+    
+    if (hasChanges) {
+        // 🔥 关键：立即刷新显示，无论是否工作日
+        updateRealTimeDisplay();
+        
+        // 🔥 新增：更新首页实时练琴状态
+        if (currentTab === 'dashboard') {
+            displayPracticeStatus();
+        }
+
+        // 持久化到本地
+        localStorage.setItem('realTimePracticeStatus', JSON.stringify(attendanceData.realTimePractice));
+        
+        addSyncLog('🎹 实时练琴状态已同步');
+    }
+}
+
+// 更新连接状态显示
+function updateConnectionStatus() {
+    const statusEl = document.getElementById('connectionStatus');
+    const syncDot = document.getElementById('syncDot');
+    const syncText = document.getElementById('syncText');
+    
+    if (isOnline) {
+        statusEl.className = 'connection-status online';
+        statusEl.innerHTML = '🟢 已连接';
+        syncDot.className = 'sync-dot';
+        syncText.textContent = '实时同步';
+    } else {
+        statusEl.className = 'connection-status offline';
+        statusEl.innerHTML = '🔴 离线模式';
+        syncDot.className = 'sync-dot error';
+        syncText.textContent = '离线模式';
+    }
+}
+
+// 添加同步日志
+function addSyncLog(message) {
+    const timestamp = new Date().toLocaleString();
+    const logEntry = `[${timestamp}] ${message}`;
+    syncLogs.unshift(logEntry);
+    
+    // 限制日志数量
+    if (syncLogs.length > 100) {
+        syncLogs = syncLogs.slice(0, 100);
+    }
+    
+    updateSyncLogsDisplay();
+}
+
+// 更新同步日志显示
+function updateSyncLogsDisplay() {
+    const logsEl = document.getElementById('syncLogs');
+    if (logsEl) {
+        logsEl.innerHTML = syncLogs.join('\n');
+        logsEl.scrollTop = 0;
+    }
+}
+
+// 加载初始数据
+function loadInitialData() {
+    if (!isOnline) return;
+    
+    addSyncLog('🔄 开始加载数据...');
+    
+    // 设置今天的日期
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('dateSelect').value = today;
+    
+    loadAttendanceData();
+}
+
+// 加载考勤数据
+function loadAttendanceData() {
+    const selectedDate = document.getElementById('dateSelect').value;
+    if (!selectedDate) return;
+    
+    showLoading('todaySnapshot');
+    
+    if (isOnline) {
+        // 从Firebase加载数据
+        database.ref(`attendanceData/${selectedDate}`).once('value')
+            .then((snapshot) => {
+                const data = snapshot.val() || {};
+                displayAttendanceSnapshot(data, selectedDate);
+                addSyncLog(`📊 已加载 ${selectedDate} 的考勤数据`);
+            })
+            .catch((error) => {
+                console.error('加载考勤数据失败:', error);
+                addSyncLog('❌ 加载考勤数据失败: ' + error.message);
+                showEmptyState('todaySnapshot', '加载失败', '无法加载考勤数据，请检查网络连接');
+            });
+    } else {
+        // 离线模式，从本地存储加载
+        const localData = localStorage.getItem(`attendance_${selectedDate}`);
+        if (localData) {
+            displayAttendanceSnapshot(JSON.parse(localData), selectedDate);
+        } else {
+            showEmptyState('todaySnapshot', '暂无数据', '离线模式下没有找到该日期的考勤数据');
+        }
+        
+        // 🔥 新增：离线模式下也显示实时练琴状态
+        displayPracticeStatus();
+
+        // 🔥 新增：合并实时练琴状态
+        if (window.globalAttendanceData && window.globalAttendanceData.realTimePractice) {
+            // 将实时练琴状态合并到当前加载的数据中
+            if (!attendanceData) attendanceData = {};
+            attendanceData.realTimePractice = window.globalAttendanceData.realTimePractice;
+            attendanceData = mergeRealTimePracticeStatus(attendanceData);
+        }
+
+    }
+
+}
+
+// 显示考勤快照
+function displayAttendanceSnapshot(data, date) {
+    const container = document.getElementById('todaySnapshot');
+    
+    if (!data || Object.keys(data).length === 0) {
+        showEmptyState('todaySnapshot', '暂无数据', `${date} 还没有考勤记录`);
+        return;
+    }
+    
+    let html = '<div class="student-grid">';
+    
+    // 按专业分组显示
+    const groupedByMajor = {};
+    Object.values(data).forEach(student => {
+        const major = student.major || '其他';
+        if (!groupedByMajor[major]) {
+            groupedByMajor[major] = [];
+        }
+        groupedByMajor[major].push(student);
+    });
+    
+    Object.keys(groupedByMajor).sort().forEach(major => {
+        html += `<div style="grid-column: 1 / -1; margin: 20px 0 10px 0;">
+                    <h4 style="color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 5px;">
+                        ${major} (${groupedByMajor[major].length}人)
+                    </h4>
+                </div>`;
+        
+        groupedByMajor[major].forEach(student => {
+            html += createStudentCard(student, true);
+        });
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+
+    // 更新统计数据
+    updateStatistics(data);
+    
+    // 🔥 新增：更新实时练琴状态显示
+    displayPracticeStatus();
+
+}
+
+// 创建学生卡片
+function createStudentCard(student, isSnapshot = false) {
+    const statusClass = getStatusClass(student.finalAttendanceStatus);
+    const statusText = getStatusText(student.finalAttendanceStatus);
+    
+    return `
+        <div class="student-card ${statusClass}" onclick="showStudentDetail('${student.name}')">
+            <div class="student-header">
+                <div class="student-name">${student.name}</div>
+                <div class="student-status ${statusClass}">${statusText}</div>
+            </div>
+            <div class="student-details">
+                <div class="detail-item">
+                    <div class="detail-label">专业</div>
+                    <div class="detail-value">${student.major || '未设置'}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">年级</div>
+                    <div class="detail-value">${student.grade || '未设置'}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">时间段</div>
+                    <div class="detail-value">${student.start || ''} - ${student.end || ''}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">练琴时长</div>
+                    <div class="detail-value">${student.practicedText || '0分钟'}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">所在琴房</div>
+                    <div class="detail-value">${student.room || '不在琴房'}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">出勤率</div>
+                    <div class="detail-value">${calculateAttendanceRate(student)}%</div>
+                </div>
+            </div>
+            ${!isSnapshot ? createAttendanceHistory(student) : ''}
+        </div>
+    `;
+}
+
+// 创建考勤历史时间轴
+function createAttendanceHistory(student) {
+    const history = student.attendanceHistory || [];
+    const last7Days = getLast7Days();
+    
+    let historyHtml = '<div class="attendance-history"><div class="history-title">最近7天考勤</div><div class="history-timeline">';
+    
+    last7Days.forEach(date => {
+        const dayData = history.find(h => h.date === date);
+        const status = dayData ? dayData.status : 'no-data';
+        const day = new Date(date).getDate();
+        
+        historyHtml += `<div class="history-day ${status}" title="${date} - ${getStatusText(status)}">${day}</div>`;
+    });
+    
+    historyHtml += '</div></div>';
+    return historyHtml;
+}
+
+// 获取最近7天日期
+function getLast7Days() {
+    const dates = [];
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        dates.push(date.toISOString().split('T')[0]);
+    }
+    return dates;
+}
+
+// 修改状态样式和文本
+function getStatusClass(status) {
+    const statusMap = {
+        'present': 'present',
+        'absent': 'absent',
+        'excused': 'excused',
+        'low_efficiency': 'low-efficiency',
+        'under_review': 'low-efficiency',
+        'practicing_unscheduled': 'practicing-unscheduled',
+        'weekend': 'weekend' // 🔥 新增周末状态
+    };
+    return statusMap[status] || 'absent';
+}
+
+function getStatusText(status) {
+    const statusMap = {
+        'present': '正常出勤',
+        'absent': '缺勤',
+        'excused': '请假',
+        'low_efficiency': '低效出勤',
+        'under_review': '待观察',
+        'no-data': '无数据',
+        'practicing_unscheduled': '时间段外练琴',
+        'weekend': '周末' // 🔥 新增
+    };
+    return statusMap[status] || '未知';
+}
+
+// 计算出勤率
+function calculateAttendanceRate(student) {
+    if (!student.attendanceHistory || student.attendanceHistory.length === 0) {
+        return 0;
+    }
+    
+    const totalDays = student.attendanceHistory.length;
+    const presentDays = student.attendanceHistory.filter(h => 
+        h.status === 'present' || h.status === 'low_efficiency'
+    ).length;
+    
+    return Math.round((presentDays / totalDays) * 100);
+}
+
+// 更新统计数据
+// 修改统计更新函数
+function updateStatistics(data) {
+    const students = Object.values(data);
+    const total = students.length;
+    const present = students.filter(s => s.finalAttendanceStatus === 'present').length;
+    const absent = students.filter(s => s.finalAttendanceStatus === 'absent').length;
+    const excused = students.filter(s => s.finalAttendanceStatus === 'excused').length;
+    const unscheduled = students.filter(s => s.finalAttendanceStatus === 'practicing_unscheduled').length;
+    const weekend = students.filter(s => s.finalAttendanceStatus === 'weekend').length;
+    
+    // 🔥 根据日期类型显示不同的统计卡片
+    if (isWeekend()) {
+        // 周末显示练琴统计
+        updateWeekendStats(total, unscheduled, weekend - unscheduled);
+    } else {
+        // 工作日显示考勤统计
+        updateWeekdayStats(total, present, absent, excused, unscheduled);
+    }
+}
+// 🔥 新增：刷新练琴状态
+function refreshPracticeStatus() {
+    updateCurrentTime();
+    displayPracticeStatus();
+    addSyncLog('🎹 已刷新实时练琴状态');
+}
+
+// 🔥 新增：更新当前时间显示
+function updateCurrentTime() {
+    const now = new Date();
+    const timeString = now.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    const currentTimeEl = document.getElementById('currentTime');
+    if (currentTimeEl) {
+        currentTimeEl.textContent = timeString;
+    }
+}
+
+// 🔥 新增：显示实时练琴状态
+function displayPracticeStatus() {
+    const container = document.getElementById('practiceStudentList');
+    if (!container) return;
+    
+    // 获取实时练琴数据
+    const practiceData = attendanceData.realTimePractice || {};
+    const practiceStudents = Object.keys(practiceData);
+    
+    if (practiceStudents.length === 0) {
+        container.innerHTML = `
+            <div class="practice-empty-state" style="grid-column: 1 / -1;">
+                <div class="practice-empty-state-icon">🎹</div>
+                <div class="practice-empty-state-title">当前没有学生在练琴</div>
+                <div class="practice-empty-state-description">
+                    ${isWeekend() ? '周末时间，学生可自主安排练琴' : '工作日时间，等待学生开始练琴'}
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    
+    // 按练琴时长排序（时间长的在前）
+    const sortedStudents = practiceStudents.sort((a, b) => {
+        const durationA = practiceData[a].currentDuration || 0;
+        const durationB = practiceData[b].currentDuration || 0;
+        return durationB - durationA;
+    });
+    
+    sortedStudents.forEach(studentName => {
+        const practiceInfo = practiceData[studentName];
+        const studentInfo = getStudentInfoFromDatabase(studentName);
+        const duration = formatPracticeDuration(practiceInfo.currentDuration || 0);
+        const startTime = new Date(practiceInfo.startTime).toLocaleTimeString('zh-CN', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        html += `
+            <div class="practice-status-card" onclick="showStudentDetail('${studentName}')">
+                <div class="practice-indicator"></div>
+                <div class="student-header">
+                    <div class="student-name">${studentName}</div>
+                    <div class="practice-duration">${duration}</div>
+                </div>
+                <div class="practice-details">
+                    <div class="detail-item">
+                        <div class="detail-label">所在琴房</div>
+                        <div class="detail-value">${practiceInfo.room || '未知琴房'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">开始时间</div>
+                        <div class="detail-value">${startTime}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">专业</div>
+                        <div class="detail-value">${studentInfo.major}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">练琴类型</div>
+                        <div class="detail-value">${isWeekend() ? '周末自主练琴' : '时间段外练琴'}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// 🔥 新增：初始化实时练琴状态显示
+function initPracticeStatusDisplay() {
+    updateCurrentTime();
+    displayPracticeStatus();
+    
+    // 每30秒更新一次时间和状态
+    setInterval(() => {
+        updateCurrentTime();
+        if (currentTab === 'dashboard') {
+            displayPracticeStatus();
+        }
+    }, 30000);
+    
+    // 每秒更新时间显示
+    setInterval(updateCurrentTime, 1000);
+}
+
+function updateWeekendStats(total, practicing, resting) {
+    document.getElementById('totalStudents').textContent = total;
+    document.getElementById('presentCount').textContent = practicing;
+    document.getElementById('absentCount').textContent = resting;
+    document.getElementById('excusedCount').textContent = 0;
+    
+    // 更新标签文字
+    document.querySelector('#presentCount').parentElement.querySelector('.stat-label').textContent = '正在练琴';
+    document.querySelector('#absentCount').parentElement.querySelector('.stat-label').textContent = '未在练琴';
+    document.querySelector('#excusedCount').parentElement.querySelector('.stat-label').textContent = '周末';
+}
+
+function updateWeekdayStats(total, present, absent, excused, unscheduled) {
+    document.getElementById('totalStudents').textContent = total;
+    document.getElementById('presentCount').textContent = present;
+    document.getElementById('absentCount').textContent = absent;
+    document.getElementById('excusedCount').textContent = excused;
+    
+    // 恢复工作日标签
+    document.querySelector('#presentCount').parentElement.querySelector('.stat-label').textContent = '正常出勤';
+    document.querySelector('#absentCount').parentElement.querySelector('.stat-label').textContent = '缺勤学生';
+    document.querySelector('#excusedCount').parentElement.querySelector('.stat-label').textContent = '请假学生';
+}
+
+
+// 切换标签页
+function switchTab(tabName) {
+    // 隐藏所有标签页内容
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.style.display = 'none';
+    });
+    
+    // 移除所有活动状态
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // 显示选中的标签页
+    document.getElementById(tabName + 'Tab').style.display = 'block';
+    
+    // 添加活动状态到选中的标签
+    event.target.classList.add('active');
+    
+    currentTab = tabName;
+    
+    // 根据标签页执行相应的初始化
+    switch(tabName) {
+        case 'students':
+            loadStudentList();
+            break;
+        case 'reports':
+            initReportsTab();
+            break;
+        case 'sync':
+            updateSyncStatus();
+            break;
+    }
+}
+
+// 加载学生列表
+function loadStudentList() {
+    if (!isOnline) {
+        showEmptyState('studentList', '离线模式', '需要连接到网络才能查看学生详情');
+        return;
+    }
+    
+    showLoading('studentList');
+    
+    // 合并考勤数据和学生数据
+    const combinedData = combineStudentAndAttendanceData();
+    displayStudentList(combinedData);
+}
+
+// 修改 combineStudentAndAttendanceData 函数
+function combineStudentAndAttendanceData() {
+    const combined = {};
+    const today = new Date().toISOString().split('T')[0];
+    const todayAttendance = attendanceData[today] || {};
+    
+    // 从学生数据库获取所有学生
+    Object.keys(studentData).forEach(major => {
+        if (Array.isArray(studentData[major])) {
+            studentData[major].forEach(student => {
+                const studentName = typeof student === 'string' ? student : student.name;
+                const studentGrade = typeof student === 'object' ? student.grade : '';
+                
+                combined[studentName] = {
+                    name: studentName,
+                    major: major,
+                    grade: studentGrade,
+                    // 🔥 修改：非工作日也显示基本状态
+                    finalAttendanceStatus: isWeekend() ? 'weekend' : 'absent',
+                    finalStatusText: isWeekend() ? '周末' : '缺勤',
+                    practicedText: '0分钟',
+                    room: '不在琴房',
+                    start: '',
+                    end: '',
+                    attendanceHistory: getStudentAttendanceHistory(studentName)
+                };
+            });
+        }
+    });
+    
+    // 🔥 关键：无论是否工作日都合并实时练琴状态
+    if (attendanceData.realTimePractice) {
+        Object.keys(attendanceData.realTimePractice).forEach(studentName => {
+            const practiceStatus = attendanceData.realTimePractice[studentName];
+            
+            // 如果学生不在已有数据中，创建新记录
+            if (!combined[studentName]) {
+                // 获取学生基本信息
+                const studentInfo = getStudentInfoFromDatabase(studentName);
+                
+                combined[studentName] = {
+                    name: studentName,
+                    major: studentInfo.major,
+                    grade: studentInfo.grade,
+                    finalAttendanceStatus: 'practicing_unscheduled',
+                    finalStatusText: isWeekend() ? '周末自主练琴' : '时间段外练琴',
+                    practicedText: formatPracticeDuration(practiceStatus.currentDuration || 0),
+                    room: practiceStatus.room || '未知琴房',
+                    start: '自主练琴',
+                    end: '自主练琴',
+                    attendanceHistory: [],
+                    isUnscheduledPractice: true,
+                    practiceStartTime: practiceStatus.startTime,
+                    practiceType: isWeekend() ? 'weekend' : 'unscheduled'
+                };
+            } else {
+                // 更新现有学生的实时练琴信息
+                combined[studentName].finalAttendanceStatus = 'practicing_unscheduled';
+                combined[studentName].finalStatusText = isWeekend() ? '周末自主练琴' : '时间段外练琴';
+                combined[studentName].room = practiceStatus.room || '未知琴房';
+                combined[studentName].practicedText = formatPracticeDuration(practiceStatus.currentDuration || 0);
+                combined[studentName].realTimePractice = {
+                    room: practiceStatus.room,
+                    duration: practiceStatus.currentDuration || 0,
+                    isActive: true
+                };
+            }
+        });
+    }
+    
+    return combined;
+}
+
+// 🔥 新增：判断是否为周末
+function isWeekend() {
+    const day = new Date().getDay();
+    return day === 0 || day === 6; // 0=周日, 6=周六
+}
+
+// 🔥 新增：从学生数据库获取学生信息
+function getStudentInfoFromDatabase(studentName) {
+    for (const [major, students] of Object.entries(studentData)) {
+        if (Array.isArray(students)) {
+            const found = students.find(student => {
+                const name = typeof student === 'string' ? student : student.name;
+                return name === studentName;
+            });
+            if (found) {
+                return {
+                    major: major,
+                    grade: typeof found === 'object' ? found.grade || '' : ''
+                };
+            }
+        }
+    }
+    return { major: '未知专业', grade: '' };
+}
+
+// 🔥 新增：格式化练琴时长
+function formatPracticeDuration(seconds) {
+    if (!seconds || seconds <= 0) return '0分钟';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+        return `${hours}小时${minutes > 0 ? minutes + '分钟' : ''}`;
+    } else if (minutes > 0) {
+        return `${minutes}分钟${secs > 0 ? secs + '秒' : ''}`;
+    } else {
+        return `${secs}秒`;
+    }
+}
+
+// 获取学生考勤历史
+function getStudentAttendanceHistory(studentName) {
+    const history = [];
+    const last30Days = getLast30Days();
+    
+    last30Days.forEach(date => {
+        const dayData = attendanceData[date];
+        if (dayData && dayData[studentName]) {
+            history.push({
+                date: date,
+                status: dayData[studentName].finalAttendanceStatus
+            });
+        }
+    });
+    
+    return history;
+}
+
+// 获取最近30天日期
+function getLast30Days() {
+    const dates = [];
+    for (let i = 29; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        dates.push(date.toISOString().split('T')[0]);
+    }
+    return dates;
+}
+
+// 显示学生列表
+function displayStudentList(data) {
+    const container = document.getElementById('studentList');
+    const students = Object.values(data);
+    
+    if (students.length === 0) {
+        showEmptyState('studentList', '暂无学生数据', '请确保学生数据已正确同步');
+        return;
+    }
+    
+    let html = '';
+    students.forEach(student => {
+        html += createStudentCard(student, false);
+    });
+    
+    container.innerHTML = html;
+}
+
+// 更新筛选器
+function updateFilters() {
+    updateMajorFilter();
+    updateGradeFilter();
+}
+
+// 更新专业筛选器
+function updateMajorFilter() {
+    const select = document.getElementById('majorFilter');
+    if (!select) return;
+    
+    const majors = Object.keys(studentData).sort();
+    select.innerHTML = '<option value="">所有专业</option>';
+    
+    majors.forEach(major => {
+        const option = document.createElement('option');
+        option.value = major;
+        option.textContent = major;
+        select.appendChild(option);
+    });
+}
+
+// 更新年级筛选器
+function updateGradeFilter() {
+    const select = document.getElementById('gradeFilter');
+    if (!select) return;
+    
+    const grades = new Set();
+    Object.values(studentData).forEach(students => {
+        if (Array.isArray(students)) {
+            students.forEach(student => {
+                if (typeof student === 'object' && student.grade) {
+                    grades.add(student.grade);
+                }
+            });
+        }
+    });
+    
+    select.innerHTML = '<option value="">所有年级</option>';
+    Array.from(grades).sort().forEach(grade => {
+        const option = document.createElement('option');
+        option.value = grade;
+        option.textContent = grade;
+        select.appendChild(option);
+    });
+}
+
+// 筛选学生
+function filterStudents() {
+    const majorFilter = document.getElementById('majorFilter').value;
+    const gradeFilter = document.getElementById('gradeFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    const searchText = document.getElementById('studentSearch').value.toLowerCase();
+    
+    const allCards = document.querySelectorAll('#studentList .student-card');
+    
+    allCards.forEach(card => {
+        const studentName = card.querySelector('.student-name').textContent;
+        const major = card.querySelector('.detail-value').textContent;
+        const grade = card.querySelectorAll('.detail-value')[1].textContent;
+        const status = card.classList.contains('present') ? 'present' :
+                      card.classList.contains('absent') ? 'absent' :
+                      card.classList.contains('excused') ? 'excused' :
+                      card.classList.contains('low-efficiency') ? 'low-efficiency' : '';
+        
+        let show = true;
+        
+        if (majorFilter && major !== majorFilter) show = false;
+        if (gradeFilter && grade !== gradeFilter) show = false;
+        if (statusFilter && status !== statusFilter) show = false;
+        if (searchText && !studentName.toLowerCase().includes(searchText)) show = false;
+        
+        card.style.display = show ? 'block' : 'none';
+    });
+}
+
+// 显示学生详情
+function showStudentDetail(studentName) {
+    const modal = document.getElementById('studentDetailModal');
+    const title = document.getElementById('studentDetailTitle');
+    const content = document.getElementById('studentDetailContent');
+    
+    title.textContent = `${studentName} - 详细信息`;
+    
+    // 获取学生数据
+    const combinedData = combineStudentAndAttendanceData();
+    const student = combinedData[studentName];
+    
+    if (!student) {
+        content.innerHTML = '<p>未找到学生信息</p>';
+        modal.classList.add('show');
+        return;
+    }
+    
+    // 生成详细信息HTML
+    const detailHtml = `
+        <div class="student-details" style="grid-template-columns: 1fr;">
+            <div class="detail-item">
+                <div class="detail-label">基本信息</div>
+                <div class="detail-value">
+                    <strong>姓名：</strong>${student.name}<br>
+                    <strong>专业：</strong>${student.major}<br>
+                    <strong>年级：</strong>${student.grade || '未设置'}
+                </div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-label">今日考勤</div>
+                <div class="detail-value">
+                    <strong>状态：</strong><span class="student-status ${getStatusClass(student.finalAttendanceStatus)}">${student.finalStatusText}</span><br>
+                    <strong>时间段：</strong>${student.start} - ${student.end}<br>
+                    <strong>练琴时长：</strong>${student.practicedText}<br>
+                    <strong>所在琴房：</strong>${student.room}
+                </div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-label">考勤统计</div>
+                <div class="detail-value">
+                    <strong>出勤率：</strong>${calculateAttendanceRate(student)}%<br>
+                    <strong>历史记录：</strong>${student.attendanceHistory ? student.attendanceHistory.length : 0} 天
+                </div>
+            </div>
+        </div>
+        
+        ${createAttendanceHistory(student)}
+        
+        <div class="action-buttons" style="margin-top: 20px;">
+            <button class="btn btn-primary" onclick="closeModal('studentDetailModal')">
+                <span>✅</span> 关闭
+            </button>
+        </div>
+
+    `;
+    
+    content.innerHTML = detailHtml;
+    modal.classList.add('show');
+}
+
+// 关闭模态框
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('show');
+}
+
+// 显示加载状态
+function showLoading(containerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+}
+
+// 显示空状态
+function showEmptyState(containerId, title, description) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = `
+        <div class="empty-state">
+            <div class="empty-state-icon">📊</div>
+            <div class="empty-state-title">${title}</div>
+            <div class="empty-state-description">${description}</div>
+        </div>
+    `;
+}
+
+// 刷新数据
+function refreshData() {
+    addSyncLog('🔄 手动刷新数据...');
+    loadAttendanceData();
+    if (currentTab === 'students') {
+        loadStudentList();
+    }
+}
+
+// 强制同步数据
+function forceSyncData() {
+    if (!isOnline) {
+        alert('需要网络连接才能同步数据');
+        return;
+    }
+    
+    const syncDot = document.getElementById('syncDot');
+    const syncText = document.getElementById('syncText');
+    
+    syncDot.className = 'sync-dot syncing';
+    syncText.textContent = '同步中...';
+    
+    addSyncLog('🔄 开始强制同步...');
+    
+    // 重新加载所有数据
+    loadInitialData();
+    
+    setTimeout(() => {
+        syncDot.className = 'sync-dot';
+        syncText.textContent = '实时同步';
+        addSyncLog('✅ 强制同步完成');
+    }, 2000);
+}
+
+
+
+
+
+
+// 生成报告
+function generateReport() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    if (!startDate || !endDate) {
+        alert('请选择开始和结束日期');
+        return;
+    }
+    
+    if (new Date(startDate) > new Date(endDate)) {
+        alert('开始日期不能晚于结束日期');
+        return;
+    }
+    
+    showLoading('reportContent');
+    
+    // 生成报告数据
+    const reportData = generateReportData(startDate, endDate);
+    displayReport(reportData, startDate, endDate);
+}
+
+// 生成报告数据
+function generateReportData(startDate, endDate) {
+    const report = {
+        totalDays: 0,
+        totalStudents: 0,
+        dailyStats: {},
+        studentStats: {},
+        overallStats: {
+            present: 0,
+            absent: 0,
+            excused: 0,
+            lowEfficiency: 0
+        }
+    };
+    
+    // 计算日期范围内的天数
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const dayCount = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    report.totalDays = dayCount;
+    
+    // 分析每天的数据
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        const dayData = attendanceData[dateStr] || {};
+        
+        report.dailyStats[dateStr] = {
+            present: 0,
+            absent: 0,
+            excused: 0,
+            lowEfficiency: 0,
+            total: 0
+        };
+        
+        Object.values(dayData).forEach(student => {
+            const status = student.finalAttendanceStatus;
+            report.dailyStats[dateStr][status] = (report.dailyStats[dateStr][status] || 0) + 1;
+            report.dailyStats[dateStr].total++;
+            report.overallStats[status] = (report.overallStats[status] || 0) + 1;
+            
+            // 学生统计
+            if (!report.studentStats[student.name]) {
+                report.studentStats[student.name] = {
+                    name: student.name,
+                    major: student.major,
+                    present: 0,
+                    absent: 0,
+                    excused: 0,
+                    lowEfficiency: 0,
+                    total: 0
+                };
+            }
+            report.studentStats[student.name][status]++;
+            report.studentStats[student.name].total++;
+        });
+    }
+    
+    // 计算总学生数
+    report.totalStudents = Object.keys(report.studentStats).length;
+    
+    return report;
+}
+
+// 显示报告
+function displayReport(reportData, startDate, endDate) {
+    const container = document.getElementById('reportContent');
+    
+    const html = `
+        <div class="card">
+            <h4>📊 考勤分析报告</h4>
+            <p><strong>统计周期：</strong>${startDate} 至 ${endDate} (${reportData.totalDays}天)</p>
+            <p><strong>参与学生：</strong>${reportData.totalStudents}人</p>
+            
+            <div class="stats-grid" style="margin: 20px 0;">
+                <div class="stat-card present">
+                    <div class="stat-number">${reportData.overallStats.present || 0}</div>
+                    <div class="stat-label">正常出勤</div>
+                </div>
+                <div class="stat-card absent">
+                    <div class="stat-number">${reportData.overallStats.absent || 0}</div>
+                    <div class="stat-label">缺勤</div>
+                </div>
+                <div class="stat-card excused">
+                    <div class="stat-number">${reportData.overallStats.excused || 0}</div>
+                    <div class="stat-label">请假</div>
+                </div>
+                <div class="stat-card total">
+                    <div class="stat-number">${reportData.overallStats.lowEfficiency || 0}</div>
+                    <div class="stat-label">低效出勤</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h4>📈 每日考勤趋势</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>总人数</th>
+                        <th>正常出勤</th>
+                        <th>缺勤</th>
+                        <th>请假</th>
+                        <th>低效出勤</th>
+                        <th>出勤率</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${Object.keys(reportData.dailyStats).sort().map(date => {
+                        const stats = reportData.dailyStats[date];
+                        const rate = stats.total > 0 ? Math.round(((stats.present || 0) + (stats.lowEfficiency || 0)) / stats.total * 100) : 0;
+                        return `
+                            <tr>
+                                <td>${date}</td>
+                                <td>${stats.total}</td>
+                                <td>${stats.present || 0}</td>
+                                <td>${stats.absent || 0}</td>
+                                <td>${stats.excused || 0}</td>
+                                <td>${stats.lowEfficiency || 0}</td>
+                                <td>${rate}%</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="card">
+            <h4>👥 学生考勤统计</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>姓名</th>
+                        <th>专业</th>
+                        <th>总天数</th>
+                        <th>正常出勤</th>
+                        <th>缺勤</th>
+                        <th>请假</th>
+                        <th>低效出勤</th>
+                        <th>出勤率</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${Object.values(reportData.studentStats).sort((a, b) => a.name.localeCompare(b.name)).map(student => {
+                        const rate = student.total > 0 ? Math.round(((student.present || 0) + (student.lowEfficiency || 0)) / student.total * 100) : 0;
+                        return `
+                            <tr>
+                                <td>${student.name}</td>
+                                <td>${student.major}</td>
+                                <td>${student.total}</td>
+                                <td>${student.present || 0}</td>
+                                <td>${student.absent || 0}</td>
+                                <td>${student.excused || 0}</td>
+                                <td>${student.lowEfficiency || 0}</td>
+                                <td>${rate}%</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="export-options">
+            <button class="btn btn-primary" onclick="generateReport()">
+                <span>🔄</span> 重新生成
+            </button>
+        </div>
+
+    `;
+    
+    container.innerHTML = html;
+    addSyncLog(`📈 已生成 ${startDate} 至 ${endDate} 的考勤报告`);
+}
+
+
+
+
+
+// 更新同步状态
+function updateSyncStatus() {
+    const statusEl = document.getElementById('syncStatus');
+    const statusTextEl = document.getElementById('syncStatusText');
+    
+    if (isOnline) {
+        statusEl.className = 'card success';
+        statusTextEl.innerHTML = `
+            <strong>✅ 已连接到Firebase数据库</strong><br>
+            数据正在实时同步中...<br>
+            <small>最后同步时间: ${new Date().toLocaleString()}</small>
+        `;
+    } else {
+        statusEl.className = 'card danger';
+        statusTextEl.innerHTML = `
+            <strong>❌ 未连接到数据库</strong><br>
+            当前处于离线模式，部分功能受限<br>
+            <small>请检查网络连接</small>
+        `;
+    }
+}
+
+// 清除本地缓存
+function clearLocalCache() {
+    if (confirm('确定要清除本地缓存吗？这将删除所有离线数据。')) {
+        localStorage.clear();
+        addSyncLog('🗑️ 已清除本地缓存');
+        alert('本地缓存已清除');
+    }
+}
+
+
+// 初始化报告标签页
+function initReportsTab() {
+    // 设置默认日期范围（最近30天）
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    
+    document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+    document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化Firebase
+    initFirebase();
+    
+    // 添加初始日志
+    addSyncLog('🚀 考勤同步系统已启动');
+    
+    // 设置默认日期
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('dateSelect').value = today;
+    
+    // 初始化报告标签页的日期
+    initReportsTab();
+    
+    // 点击模态框外部关闭
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal')) {
+            e.target.classList.remove('show');
+        }
+    });
+    
+    // ESC键关闭模态框
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal.show').forEach(modal => {
+                modal.classList.remove('show');
+            });
+        }
+    });
+    
+    // 定期更新同步状态
+    setInterval(updateSyncStatus, 30000); // 每30秒更新一次
+    // 🔥 新增：初始化实时练琴状态显示
+    initPracticeStatusDisplay();
+    
+    console.log('✅ 考勤同步系统初始化完成');
+});
+
+// 监听窗口关闭，保存数据到本地存储
+window.addEventListener('beforeunload', function() {
+    if (attendanceData && Object.keys(attendanceData).length > 0) {
+        Object.keys(attendanceData).forEach(date => {
+            localStorage.setItem(`attendance_${date}`, JSON.stringify(attendanceData[date]));
+        });
+    }
+    
+    if (studentData && Object.keys(studentData).length > 0) {
+        localStorage.setItem('studentData', JSON.stringify(studentData));
+    }
+    
+    localStorage.setItem('syncLogs', JSON.stringify(syncLogs));
+});
+
+// 页面加载时恢复本地数据
+window.addEventListener('load', function() {
+    // 恢复同步日志
+    const savedLogs = localStorage.getItem('syncLogs');
+    if (savedLogs) {
+        syncLogs = JSON.parse(savedLogs);
+        updateSyncLogsDisplay();
+    }
+    // 🔥 新增：恢复实时练琴状态
+    const savedRealTimePractice = localStorage.getItem('realTimePracticeStatus');
+    if (savedRealTimePractice) {
+        if (!attendanceData.realTimePractice) {
+            attendanceData.realTimePractice = {};
+        }
+        Object.assign(attendanceData.realTimePractice, JSON.parse(savedRealTimePractice));
+        addSyncLog('📂 已恢复实时练琴状态数据');
+    }
+
+    
+    // 恢复学生数据
+    const savedStudentData = localStorage.getItem('studentData');
+    if (savedStudentData) {
+        studentData = JSON.parse(savedStudentData);
+        updateFilters();
+    }
+    
+    // 如果离线，尝试恢复考勤数据
+    if (!isOnline) {
+        const today = new Date().toISOString().split('T')[0];
+        const savedAttendance = localStorage.getItem(`attendance_${today}`);
+        if (savedAttendance) {
+            attendanceData[today] = JSON.parse(savedAttendance);
+            displayAttendanceSnapshot(attendanceData[today], today);
+        }
+    }
+});
+</script>
+
+</body>
+</html>
