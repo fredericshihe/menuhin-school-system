@@ -1321,29 +1321,6 @@ body {
     border-radius: var(--radius-small);
 }
 
-/* === 休息倒计时美化组件 === */
-.break-badge{position:relative;display:inline-flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;padding:6px 10px 8px;border-radius:10px;background:linear-gradient(135deg,#f6f8fa,#e9eef5);color:#0d1117;font-size:11px;font-weight:600;line-height:1.2;min-width:118px;box-shadow:0 2px 6px rgba(0,0,0,.08);border:1px solid #d0d7de;overflow:hidden;}
-@media (prefers-color-scheme: dark){
-  .break-badge{background:linear-gradient(135deg,#21262d,#2d333b);color:#f0f6fc;border:1px solid #30363d;box-shadow:0 2px 6px rgba(0,0,0,.35);} 
-}
-.break-badge[data-break-type="lunch"], .break-badge[data-label-key*="lunch"]{background:linear-gradient(135deg,#fff4e0,#ffe1b0);border-color:#ffd79a;}
-.break-badge[data-break-type="concert"], .break-badge[data-label-key*="concert"]{background:linear-gradient(135deg,#efe7ff,#dccfff);border-color:#c7b5ff;}
-.break-badge[data-break-type="large"], .break-badge[data-label-key*="large"]{background:linear-gradient(135deg,#e0f7ff,#b9ebff);border-color:#a1def5;}
-.break-badge[data-break-type="recess"], .break-badge[data-label-key*="recess"]{background:linear-gradient(135deg,#e8f7ee,#c9efd9);border-color:#b2e6c6;}
-.break-badge .bb-head{display:flex;align-items:center;gap:4px;width:100%;}
-.break-badge .bb-icon{font-size:14px;filter:saturate(1.2);} 
-.break-badge .bb-title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.break-badge .bb-remain{font-variant-numeric:tabular-nums;font-weight:700;font-size:11px;letter-spacing:.5px;}
-.break-badge .bb-remain.urgent{color:#d92c2c;animation:pulseRemain 1s infinite alternate;} 
-.break-badge .bb-line{width:100%;height:6px;border-radius:4px;background:rgba(0,0,0,.08);overflow:hidden;position:relative;margin-top:4px;}
-@media (prefers-color-scheme: dark){.break-badge .bb-line{background:rgba(255,255,255,.12);} }
-.break-badge .bb-fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,#56ccf2,#2f80ed);transition:width .6s cubic-bezier(.4,.6,.3,1);} 
-.break-badge[data-break-type="lunch"] .bb-fill{background:linear-gradient(90deg,#f2994a,#f2c94c);} 
-.break-badge[data-break-type="concert"] .bb-fill{background:linear-gradient(90deg,#bb6bd9,#845ef7);} 
-.break-badge[data-break-type="large"] .bb-fill{background:linear-gradient(90deg,#2d9cdb,#56ccf2);} 
-.break-badge[data-break-type="recess"] .bb-fill{background:linear-gradient(90deg,#27ae60,#6fcf97);} 
-@keyframes pulseRemain{from{opacity:1;}to{opacity:.55;}}
-
 /* 移动端卡片优化 */
 @media (max-width: 768px) {
     .student-card,
@@ -6114,9 +6091,6 @@ let dailyPracticeRecords={};
 let practiceSessionTracker=new Map();
 let lastPracticeSessionSweep=0;
 const PRACTICE_UPDATE_INTERVAL_MS=60000;
-// 练琴统计日窗口（只统计此时间范围内的练琴；以前夜间 21:30-24:00 作为“剔除”，现在直接不纳入原始统计）
-const PRACTICE_DAY_START_MINUTES = 6*60;   // 06:00
-const PRACTICE_DAY_END_MINUTES   = 21*60+30; // 21:30 (不含之后)
 
 /* ==== 休息时间配置（课间/午餐/大课间/晚餐 + 夜间）==== */
 const BREAK_SCHEDULE={
@@ -6175,24 +6149,6 @@ function getTodayDateString(){return formatDate(new Date());}
 function flattenStudents(){const arr=[];Object.keys(studentDatabase).forEach(major=>{const list=studentDatabase[major];if(Array.isArray(list)){list.forEach(s=>{if(typeof s==='string')arr.push({name:s,major});else if(s&&typeof s==='object')arr.push({name:s.name,major,grade:s.grade||''});});}});return arr;}
 function getStudentInfo(name){for(const [major,arr] of Object.entries(studentDatabase)){if(Array.isArray(arr)){for(const s of arr){if(typeof s==='string'&&s===name)return {name,major,grade:''};if(typeof s==='object'&&s.name===name)return {name,major,grade:s.grade||''};}}}return {name,major:t('student.unknown_major','未知专业'),grade:''};}
 
-// 将原始练琴区间裁剪到日窗口 (06:00 <= t < 21:30)，去除跨午夜残片与 21:30 以后部分
-function clipPracticeIntervals(dateStr, intervals){
-  if(!Array.isArray(intervals)||!intervals.length) return [];
-  const dayStart=new Date(`${dateStr}T00:00:00`).getTime();
-  const winStart=dayStart + PRACTICE_DAY_START_MINUTES*60000;
-  const winEnd  =dayStart + PRACTICE_DAY_END_MINUTES*60000; // 21:30
-  const out=[];
-  for(const iv of intervals){
-    if(!iv||!iv.start||!iv.end) continue;
-    let s=iv.start,e=iv.end;
-    if(e<=winStart || s>=winEnd) continue; // 完全在窗口外
-    if(s<winStart) s=winStart;
-    if(e>winEnd)   e=winEnd;
-    if(e-s>=1000) out.push({...iv,start:s,end:e});
-  }
-  return out;
-}
-
 /* ==== 休息时间剔除与统一计算 ==== */
 function subtractExcludedFromIntervals(dateStr, intervals){
   if(!Array.isArray(intervals)||!intervals.length) return [];
@@ -6201,7 +6157,8 @@ function subtractExcludedFromIntervals(dateStr, intervals){
   const wd=new Date(dateStr).getDay();
   const segs=[...BREAK_SCHEDULE.common];
   if(wd===3) segs.push(...BREAK_SCHEDULE.wed); else if(wd>=1&&wd<=5) segs.push(...BREAK_SCHEDULE.monTueThuFri);
-  // (已移除夜间段: 21:30 以后直接不计入 raw，不再作为“剔除来源”)
+  // 夜间 21:30~24:00
+  segs.push({start:21*60+30,end:24*60,label:'夜间'});
   const exclude=segs.map(s=>({start:dayStart+s.start*60000,end:dayStart+s.end*60000}));
   intervals.forEach(iv=>{
     let parts=[{start:iv.start,end:iv.end}];
@@ -6251,7 +6208,9 @@ function buildExcludedBreakdown(dateStr, rawIntervals){
     end:dayStart+s.end*60000,
     segMinutes:s.end-s.start
   }));
-  // 夜间不再加入剔除统计（21:30 后不采集 / 已被裁剪）
+  const nightStart=dayStart+(21*60+30)*60000;
+  const nightEnd=dayStart+24*60*60000;
+  breakAbs.push({labelKey:'break.night',label:t('break.night','夜间'),start:nightStart,end:nightEnd,segMinutes:150});
   const result=[];
   breakAbs.forEach(seg=>{
     let removed=0;
@@ -6270,9 +6229,8 @@ function buildExcludedBreakdown(dateStr, rawIntervals){
 }
 function getCleanedIntervals(studentName,dateStr){
   const isToday=dateStr===formatDate(new Date());
-  const original = isToday? getStudentTodayIntervals(studentName): getHistoryIntervals(studentName,dateStr);
-  const clipped = clipPracticeIntervals(dateStr, original||[]);
-  return {raw:clipped, cleaned: subtractExcludedFromIntervals(dateStr, clipped)};
+  const raw=isToday? getStudentTodayIntervals(studentName): getHistoryIntervals(studentName,dateStr);
+  return {raw:raw||[], cleaned: subtractExcludedFromIntervals(dateStr, raw||[])};
 }
 function calcOverlapSeconds(intervals, slotStartMs, slotEndMs){
   if(!intervals||!intervals.length) return 0;
@@ -6376,7 +6334,7 @@ function showExcludedBreakdown(_anchor,dateStr){
     const dio=computeDayInOut(name,dateStr);const list=dio.excludedBreakdown||[];
   const totalMin=Math.round((dio.excludedSecUnion/60)*10)/10;
   const rows=list.map(seg=>{const start=new Date(seg.start),end=new Date(seg.end);const fmt=(d)=>`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;let mm=Math.round(seg.removedSec/60*10)/10; if(Math.abs(mm-Math.round(mm))<0.05) mm=Math.round(mm);return `<tr><td>${t(seg.labelKey,seg.label)}</td><td style='white-space:nowrap;'>${fmt(start)} - ${fmt(end)}</td><td style='text-align:right;'>${mm}min</td></tr>`;}).join('') || `<tr><td colspan='3' style='text-align:center;color:#888;'>0</td></tr>`;
-  const note=`<div style='font-size:12px;line-height:1.5;margin:0 0 8px;color:#888;'>说明：剔除时间 = 课间 / 大课间 / 午餐${t('break.short.lunch_concert','午餐时间+午间音乐会')?'/午间音乐会':''} / 晚餐 等不计入练琴统计的时间。<br>本日剔除合计：<b>${totalMin} min</b></div>`;
+  const note=`<div style='font-size:12px;line-height:1.5;margin:0 0 8px;color:#888;'>说明：剔除时间 = 课间/大课间/午餐${t('break.short.lunch_concert','午餐时间+午间音乐会')?'/午间音乐会':''}/晚餐 + 夜间(21:30-24:00) 等不计入练琴统计的时间。<br>本日剔除合计：<b>${totalMin} min</b></div>`;
   createCenterModal(`${note}<table>${rows}</table>`, `${dateStr} ${t('break.excluded_minutes','剔除分钟')}`);
   }catch(e){console.error('showExcludedBreakdown error',e);}
 }
@@ -6639,11 +6597,7 @@ function initFirebase(){
       const v=snap.val();if(v){excuseData=v;if(currentTab==='dashboard')renderExcusePanel();updateStatsPanel();}
     });
     database.ref('studentTimeSlots').on('value',snap=>{
-      const raw = snap.val()||{};
-      const beforeCnt = Object.values(raw).reduce((sum,s)=>sum + (s&&s.monday? s.monday.length:0)+(s&&s.tuesday? s.tuesday.length:0)+(s&&s.wednesday? s.wednesday.length:0)+(s&&s.thursday? s.thursday.length:0)+(s&&s.friday? s.friday.length:0),0);
-      studentTimeSlots = normalizeStudentTimeSlots(raw);
-      const afterCnt = Object.values(studentTimeSlots).reduce((sum,s)=>sum + (s&&s.monday? s.monday.length:0)+(s&&s.tuesday? s.tuesday.length:0)+(s&&s.wednesday? s.wednesday.length:0)+(s&&s.thursday? s.thursday.length:0)+(s&&s.friday? s.friday.length:0),0);
-      addSyncLog(`📥 已同步 studentTimeSlots (归一化 ${beforeCnt} -> ${afterCnt})`);
+      studentTimeSlots=snap.val()||{};addSyncLog('📥 已同步 studentTimeSlots');
       // 如果学生详情已开并存在段外异常（初次为空），尝试刷新
       const modal=document.getElementById('studentDetailModal');
       if(modal&&modal.style.display==='flex'){
@@ -6657,8 +6611,6 @@ function initFirebase(){
           }
         }
       }
-  // 🔥 修复：学生时间段同步后立即刷新统计（解决首屏缺少 timeSlots 导致的出勤/状态错误）
-  updateStatsPanel();
     });
     database.ref('attendanceRecords').on('value',snap=>{
       const v=snap.val();if(v&&typeof v==='object'){const cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);const cutoffStr=formatDate(cutoff);Object.keys(v).forEach(d=>{if(d>=cutoffStr)attendanceRecordsCache[d]=v[d];});addSyncLog('📥 已同步考勤记录');if(currentTab==='students')renderStudentList();}
@@ -6702,59 +6654,6 @@ function getStudentTodaySlots(name){
   const M={1:'monday',2:'tuesday',3:'wednesday',4:'thursday',5:'friday'};
   const key=M[wd];if(!key||!studentTimeSlots[name])return [];
   return studentTimeSlots[name][key]||[];
-}
-// 🔧 统一时间格式 -> 合并重叠/相邻 -> 去重 -> 重新计算分钟
-function normalizeStudentTimeSlots(raw){
-  if(!raw||typeof raw!=="object") return raw;
-  const dayKeys=['monday','tuesday','wednesday','thursday','friday'];
-  const pad=t=>t.replace(/^\s+/,'').replace(/\s+$/,'').split(':').map(x=>x.padStart(2,'0')).join(':');
-  function normList(list){
-    if(!Array.isArray(list)) return [];
-    // 1. 规范化 start/end
-    const arr=list.map(s=>({
-      name: s.name || `${s.start||''}-${s.end||''}`,
-      start: pad(String(s.start||'')),
-      end: pad(String(s.end||''))
-    })).filter(s=>/^\d{2}:\d{2}$/.test(s.start)&&/^\d{2}:\d{2}$/.test(s.end)&&s.start<s.end);
-    // 2. 转为分钟并排序
-    const items=arr.map(s=>({
-      name:s.name,
-      sm: timeToMinutes(s.start),
-      em: timeToMinutes(s.end)
-    })).sort((a,b)=>a.sm-b.sm || a.em-b.em);
-    // 3. 合并
-    const merged=[];
-    for(const it of items){
-      const last=merged[merged.length-1];
-      if(!last){merged.push({...it});continue;}
-      if(it.sm<=last.em){ // 重叠或相邻（如 480 与 480, 也合并）
-        if(it.em>last.em) last.em=it.em;
-      }else{
-        merged.push({...it});
-      }
-    }
-    // 4. 生成最终结构并计算 totalPlannedMinutes
-    return merged.map(m=>({
-      start: minutesToHHMM(m.sm),
-      end: minutesToHHMM(m.em),
-      totalPlannedMinutes: m.em - m.sm
-    }));
-  }
-  function minutesToHHMM(m){
-    const hh=String(Math.floor(m/60)).padStart(2,'0');
-    const mm=String(m%60).padStart(2,'0');
-    return `${hh}:${mm}`;
-  }
-  const out={};
-  Object.keys(raw).forEach(student=>{
-    const conf=raw[student];
-    if(!conf||typeof conf!=='object'){ out[student]=conf; return; }
-    out[student]={};
-    dayKeys.forEach(d=>{
-      if(conf[d]) out[student][d]=normList(conf[d]);
-    });
-  });
-  return out;
 }
 function findCurrentTimeSlot(slots,ts){
   const d=new Date(ts);
@@ -7234,10 +7133,6 @@ function getStatusText(s){
   }
 }
 function updateStatsPanel(){
-  // 🔒 数据就绪保护：若关键数据尚未同步，避免首屏误判
-  if(!studentDatabase || Object.keys(studentDatabase).length===0) return;
-  // 至少等待 studentTimeSlots 首次加载（防止所有学生误判为缺勤/未练琴）
-  if(!studentTimeSlots || Object.keys(studentTimeSlots).length===0) return;
   const students=flattenStudents();
   const presentSet=new Set();rooms.forEach(r=>{if(r.student)presentSet.add(r.student);});
   const today=formatDate(new Date());
@@ -7387,34 +7282,15 @@ function updateBreakCountdowns(){
   const now=new Date();
   const info=currentBreakInfo(now);
   badges.forEach(b=>{
-    if(!info){ b.remove(); return; }
-    const total=(info.endMinute-info.startMinute)*60; // 秒
-    const remain=info.remainSec; // 秒
-    const passed=Math.max(0,total-remain);
-    const pct= total>0 ? Math.min(100,Math.max(0, (passed/total)*100)) : 0;
-    const mm=Math.floor(remain/60),ss=remain%60;
-    const label=t(info.labelKey,info.label);
-    // 识别类型
-    let type='recess';
-    if(/lunch_concert/.test(info.labelKey)) type='concert';
-    else if(/lunch/.test(info.labelKey)) type='lunch';
-    else if(/large/.test(info.labelKey)) type='large';
-    else if(/recess/.test(info.labelKey)) type='recess';
-    b.dataset.breakType=type;
-    // 构造内部结构（若第一次）
-    if(!b._enhanced){
-      b.innerHTML=`<div class="bb-head"><span class="bb-icon">⏱️</span><span class="bb-title"></span><span class="bb-remain"></span></div><div class="bb-line"><div class="bb-fill"></div></div>`;
-      b._enhanced=true;
+    if(info){
+      const remain=info.remainSec - (Date.now()/1000-Math.floor(now.getTime()/1000)); // remainSec 已按当前 now 计算，这里仅简单使用 remainSec
+      const r=info.remainSec; // 秒
+      const mm=Math.floor(r/60),ss=r%60;
+      const label=t(info.labelKey,info.label);
+      b.textContent=`${label} (${mm.toString().padStart(2,'0')}:${ss.toString().padStart(2,'0')})`;
+    }else{
+      b.remove();
     }
-    const titleEl=b.querySelector('.bb-title');
-    const remainEl=b.querySelector('.bb-remain');
-    const fillEl=b.querySelector('.bb-fill');
-    if(titleEl) titleEl.textContent=label;
-    if(remainEl){
-      remainEl.textContent=`${mm.toString().padStart(2,'0')}:${ss.toString().padStart(2,'0')}`;
-      remainEl.classList.toggle('urgent', remain<=60);
-    }
-    if(fillEl){ fillEl.style.width=pct.toFixed(1)+'%'; }
   });
 }
 setInterval(()=>{
@@ -9527,22 +9403,15 @@ function generateReport(){
 /* =============== 同步 / 缓存 =============== */
 function loadAllCoreData(){
   if(!database)return;
-  const ready={rooms:false,students:false,excuses:false,slots:false};
-  function maybeInitialRender(){
-    if(Object.values(ready).every(v=>v)){
-      addSyncLog('✅ 首屏数据就绪，执行初次渲染');
-      updateStatsPanel();
-      renderPracticeArea();
-      renderExcusePanel();
-      if(currentTab==='students')renderStudentList();
-    }
-  }
   Promise.all([
-    database.ref('rooms').once('value').then(s=>{if(Array.isArray(s.val())){rooms=s.val();buildRealTimePracticeFromRooms();}ready.rooms=true;maybeInitialRender();}),
-    database.ref('studentDatabase').once('value').then(s=>{if(s.val())studentDatabase=s.val();ready.students=true;maybeInitialRender();}),
-    database.ref('excuseData').once('value').then(s=>{if(s.val())excuseData=s.val();ready.excuses=true;maybeInitialRender();}),
-  database.ref('studentTimeSlots').once('value').then(s=>{const raw=s.val()||{};const before=Object.values(raw).reduce((sum,x)=>sum + (x?.monday?.length||0)+(x?.tuesday?.length||0)+(x?.wednesday?.length||0)+(x?.thursday?.length||0)+(x?.friday?.length||0),0);studentTimeSlots=normalizeStudentTimeSlots(raw);const after=Object.values(studentTimeSlots).reduce((sum,x)=>sum + (x?.monday?.length||0)+(x?.tuesday?.length||0)+(x?.wednesday?.length||0)+(x?.thursday?.length||0)+(x?.friday?.length||0),0);addSyncLog(`🧮 首次加载 timeSlots 归一化 ${before} -> ${after}`);ready.slots=true;maybeInitialRender();})
-  ]).catch(e=>addSyncLog('❌ 加载失败 '+e.message));
+    database.ref('rooms').once('value').then(s=>{if(Array.isArray(s.val())){rooms=s.val();buildRealTimePracticeFromRooms();}}),
+    database.ref('studentDatabase').once('value').then(s=>{if(s.val())studentDatabase=s.val();}),
+    database.ref('excuseData').once('value').then(s=>{if(s.val())excuseData=s.val();})
+  ]).then(()=>{
+    addSyncLog('✅ 核心数据加载完成');
+    updateStatsPanel();renderPracticeArea();renderExcusePanel();
+    if(currentTab==='students')renderStudentList();
+  }).catch(e=>addSyncLog('❌ 加载失败 '+e.message));
 }
 function forceSync(){
   if(!isOnline){alert(t('msg.sync_required','需要网络连接才能同步数据'));return;}
