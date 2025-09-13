@@ -6395,6 +6395,13 @@ html {
 /* ================= 442说明新版样式 END ================= */
 </style>
 <style id="performance-mode-style">
+/* ===== Leaderboard Skeleton ===== */
+.lb-skeleton-row{animation:lbShimmer 1.2s linear infinite;background:linear-gradient(90deg,var(--bg-darker) 0%,var(--bg-hover) 40%,var(--bg-darker) 80%);background-size:240% 100%;height:34px;border-radius:4px;}
+.lb-skeleton-cell{height:14px;border-radius:4px;margin:10px 8px;background:rgba(255,255,255,0.08);}
+@keyframes lbShimmer{0%{background-position:0 0;}100%{background-position:-240% 0;}}
+.leaderboard-table.skeleton tbody tr td{padding:0;border:none;}
+.leaderboard-table.skeleton tbody tr{background:transparent!important;}
+.leaderboard-table.skeleton .rank-cell,.leaderboard-table.skeleton .score-cell{color:transparent;}
 /* ================= 性能模式覆盖（仅在 html.performance-mode 下生效） ================= */
 html.performance-mode {
   --shadow: 0 1px 2px rgba(0,0,0,0.08) !important;
@@ -6581,17 +6588,17 @@ html.performance-mode .dynamic-number { will-change: contents !important; }
   <div id="leaderboardTab" class="tab-content" style="display:none;">
     <div class="leaderboard-container" id="leaderboard-section">
       <div class="leaderboard-title-container">
-        <h3 class="leaderboard-title">442练琴排行榜</h3>
-        <button onclick="showHistoryLeaderboard()" class="leaderboard-history-btn" title="查看历史排行榜">📅</button>
+  <h3 class="leaderboard-title" data-i18n="leaderboard.title">442练琴排行榜</h3>
+  <button onclick="showHistoryLeaderboard()" class="leaderboard-history-btn" title="查看历史排行榜" data-i18n-title="leaderboard.history_title">📅</button>
       </div>
       
       <!-- 排行榜按钮区域（去除刷新按钮） -->
       <div class="leaderboard-action-bar">
   <div class="lb-left">
-    <div id="leaderboard-refresh-status" class="leaderboard-status minimal" data-mode="idle">尚未计算</div>
+  <div id="leaderboard-refresh-status" class="leaderboard-status minimal" data-mode="idle" data-i18n="leaderboard.not_computed">尚未计算</div>
   </div>
         <div class="lb-center">
-          <button onclick="showLeaderboardDetail()" class="leaderboard-btn lb-info" title="查看442测评体系规则">📊 测评规则说明</button>
+          <button onclick="showLeaderboardDetail()" class="leaderboard-btn lb-info" title="查看442测评体系规则" data-i18n="leaderboard.rules_btn">📊 测评规则说明</button>
         </div>
         <div class="lb-right">
           <button class="leaderboard-btn lb-expand" id="lb-toggle-more" style="display:none;" data-i18n="leaderboard.expand">展开全部</button>
@@ -6602,11 +6609,11 @@ html.performance-mode .dynamic-number { will-change: contents !important; }
         <table class="leaderboard-table" id="leaderboard-table">
           <thead>
             <tr>
-              <th style="width:80px;">排名</th>
+              <th style="width:80px;" data-i18n="leaderboard.rank">排名</th>
               <th data-i18n="student.name">姓名</th>
               <th data-i18n="student.grade">年级</th>
               <th data-i18n="student.major">专业</th>
-              <th style="width:120px;">总分</th>
+              <th style="width:120px;" data-i18n="leaderboard.total">总分</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -7338,6 +7345,40 @@ function computeOutsideMinutes(practiceIntervals, slotIntervals){
   return minutes;
 }
 
+// ===== 排行榜缓存: 加速首屏 =====
+function restoreLeaderboardFromCache(){
+  const raw = localStorage.getItem('leaderboard_last_result');
+  if(!raw) return false;
+  let obj;try{obj=JSON.parse(raw);}catch(e){return false;}
+  if(!obj || !Array.isArray(obj.rows)) return false;
+  // 同一天校验
+  const today = new Date().toISOString().slice(0,10);
+  if(obj.date !== today) return false;
+  leaderboardState.raw = obj.rows;
+  leaderboardState.lastCompute = obj.ts||Date.now();
+  leaderboardState.renderMode = 'cached';
+  renderLeaderboard();
+  if(window.setUpdateStatus) window.setUpdateStatus('updated',{rows:obj.rows.length,cost:obj.cost||0});
+  return true;
+}
+function cacheLeaderboardRows(rows,cost){
+  try{
+    const payload={date:new Date().toISOString().slice(0,10),rows,ts:Date.now(),cost};
+    localStorage.setItem('leaderboard_last_result', JSON.stringify(payload));
+  }catch(e){console.warn('[leaderboard] cache save fail',e);}  
+}
+
+// ===== Inline Leaderboard Worker (sorting + ranking) =====
+function getLeaderboardWorker(){
+  if(!('Worker' in window)) return null;
+  if(window.__lbWorker) return window.__lbWorker;
+  const code = `(()=>{\nconst calcOverlapSeconds=(ivs,s,e)=>{let sec=0;for(const iv of ivs||[]){if(!iv)continue;if(iv.end<=s)continue;if(iv.start>=e)continue;sec+=Math.min(iv.end,e)-Math.max(iv.start,s);}return Math.floor(sec/1000);};\nfunction computeDim1(pSlots,practiceIntervals,dateStr,params){const p=params.dim1;if(!pSlots.length)return {score:0,completed:0,total:0,rate:0};let completed=0,absent=0,latePenalty=0;for(const slot of pSlots){const slotStart=new Date(dateStr+'T'+slot.start+':00').getTime();const slotEnd=new Date(dateStr+'T'+slot.end+':00').getTime();const dur=(slotEnd-slotStart)/60000;if(dur<=0)continue;const overlapSec=calcOverlapSeconds(practiceIntervals,slotStart,slotEnd);const coverage=dur>0?(overlapSec/60)/dur:0;if(coverage>=p.coverageCompleteThreshold)completed++;else if(overlapSec===0)absent++;let firstStart=null;for(const iv of practiceIntervals){if(iv.end<=slotStart)continue;if(iv.start>=slotEnd)break;firstStart=Math.max(iv.start,slotStart);break;}if(firstStart){const lateMin=Math.max(0,Math.floor((firstStart-slotStart)/60000 - p.graceMinutes));if(lateMin>0)latePenalty+=lateMin*p.pLate;}}const rate=completed/pSlots.length;const incompletePenalty=(1-rate)*p.P_incomplete;latePenalty=Math.min(latePenalty,p.lateCap);const absentPenalty=absent*p.pAbsent;let raw=100-incompletePenalty-latePenalty-absentPenalty;if(rate===1&&latePenalty===0&&absent===0)raw+=p.fullBonus;raw=Math.max(0,Math.min(raw,100));return {score:+((raw/100)*40).toFixed(2),completed,total:pSlots.length,rate};}\nfunction parseHHMM(str){if(!str)return NaN;const m=str.match(/^(\\d{1,2}):(\\d{2})$/);return m?+m[1]*60+ +m[2]:NaN;}\nfunction toDayMinute(ms,dateStr){const dayStart=new Date(dateStr+'T00:00:00').getTime();return Math.floor((ms-dayStart)/60000);}\nfunction mergePracticeIntervalsMs(arr){if(!arr||!arr.length)return [];const sorted=arr.slice().sort((a,b)=>a.start-b.start);const r=[];let cur=sorted[0];for(let i=1;i<sorted.length;i++){const x=sorted[i];if(x.start<=cur.end){cur.end=Math.max(cur.end,x.end);}else{r.push(cur);cur=x;}}r.push(cur);return r;}\nfunction computeDim2(slots,practiceIntervals,dateStr,params){const p=params.dim2;if(!practiceIntervals||!practiceIntervals.length)return {score:0};const merged=mergePracticeIntervalsMs(practiceIntervals);let longP=0,shortP=0,tailP=0;for(const iv of merged){const startMin=toDayMinute(iv.start,dateStr);const endMin=toDayMinute(iv.end,dateStr);if(endMin<=startMin)continue;const L=endMin-startMin;if(L>p.longStartMin){const over=Math.min(L-p.longStartMin,p.longCapExtraMin);longP+=over*p.pLong;}if(L<p.shortThreshold){shortP+=(p.shortThreshold-L)*p.pShort;}}const slotEnds=(slots||[]).map(s=>parseHHMM(s.end));for(const iv of merged){const endMin=toDayMinute(iv.end,dateStr);const startMin=toDayMinute(iv.start,dateStr);for(const s of slotEnds){if(startMin<s&&endMin> s+p.tailGrace){const tail=Math.min(endMin-(s+p.tailGrace),p.tailCapMinutes);tailP+=tail*p.pTail;break;}}}const totalPenalty=longP+shortP+tailP;let raw=100-totalPenalty;raw=Math.max(0,Math.min(raw,100));return {score:+((raw/100)*40).toFixed(2)};}\nfunction computeDim3(prevPercent,dim1Score,dim2Score,params){const p=params.dim3;const baseSum=dim1Score+dim2Score;const dim3Score=baseSum*prevPercent*p.factors.yesterdayRank;return {score:+dim3Score.toFixed(2)};}\nself.onmessage=e=>{const d=e.data;if(!d)return;if(d.type==='sort'){const start=Date.now();let rows=Array.isArray(d.rows)?d.rows.slice():[];try{rows.sort((a,b)=>b.total-a.total||b.dim1.score-a.dim1.score||b.dim2.score-a.dim2.score||b.dim3.score-a.dim3.score||(a.name||'').localeCompare(b.name||'','zh'));let currentRank=0,processed=0,lastKey=null;for(const r of rows){processed++;const k=r.total.toFixed(2)+'|'+r.dim1.score.toFixed(2)+'|'+r.dim2.score.toFixed(2)+'|'+r.dim3.score.toFixed(2);if(k!==lastKey){currentRank=processed;lastKey=k;}r.displayRank=currentRank;}}catch(err){self.postMessage({type:'error',message:err&&err.message,reqId:d.reqId});return;}const cost=Date.now()-start;self.postMessage({type:'result',rows,cost,reqId:d.reqId});return;}if(d.type==='full'){const start=Date.now();let rows=[];try{for(const stu of d.students||[]){if(stu.grade==='G12')continue;const dim1=computeDim1(stu.slots||[],stu.practiceIntervals||[],d.date,d.params);const dim2=computeDim2(stu.slots||[],stu.practiceIntervals||[],d.date,d.params);const dim3=computeDim3(stu.prevPercent||0,dim1.score,dim2.score,d.params);const total=+((0.4*(dim1.score/40)+0.4*(dim2.score/40)+0.2*((dim3.score||0)/((dim1.score+dim2.score)>0?((dim1.score+dim2.score)*d.params.dim3.percentStart):1)))*100).toFixed(2);rows.push({name:stu.name,grade:stu.grade||'',major:stu.major||'',dim1,dim2,dim3:{score:dim3.score},total,prevPercent:stu.prevPercent||0});}rows.sort((a,b)=>b.total-a.total||b.dim1.score-a.dim1.score||b.dim2.score-a.dim2.score||b.dim3.score-a.dim3.score||(a.name||'').localeCompare(b.name||'','zh'));let currentRank=0,processed=0,lastKey=null;for(const r of rows){processed++;const k=r.total.toFixed(2)+'|'+r.dim1.score.toFixed(2)+'|'+r.dim2.score.toFixed(2)+'|'+r.dim3.score.toFixed(2);if(k!==lastKey){currentRank=processed;lastKey=k;}r.displayRank=currentRank;}}catch(err){self.postMessage({type:'error',message:err&&err.message,reqId:d.reqId});return;}const cost=Date.now()-start;self.postMessage({type:'full-result',rows,cost,reqId:d.reqId});}};})();`;
+  const blob = new Blob([code], {type:'application/javascript'});
+  const worker = new Worker(URL.createObjectURL(blob));
+  window.__lbWorker = worker;
+  return worker;
+}
+
 function computeLeaderboard(){
   leaderboardState.dirty=false;
   if(leaderboardState.pending) return;
@@ -7360,39 +7401,65 @@ function computeLeaderboard(){
   const students = flattenStudents();
   if(!students.length){ console.warn('[leaderboard] 无可参与学生（过滤后为空，例如全部为 G12）'); leaderboardState.raw=[]; renderLeaderboard(); return; }
   const yesterdayMap = getYesterdayRankPercentMap();
-  const rows=[];
-  for(const stu of students){
-    if(stu.grade === 'G12') continue;
-    const name = stu.name;
-    const slots = getStudentTodaySlots(name);
-    const {cleanIntervals, todayStr} = getTodayPracticeForLeaderboard(name);
-    const practiceIntervals = cleanIntervals;
-    const dim1 = computeDimension1(slots, practiceIntervals, todayStr);
-    const dim2 = computeDimension2(slots, practiceIntervals, todayStr);
-    const prevPercent = yesterdayMap[name] || 0; // 0~0.20
-    const dim3 = computeDimension3FromPrev(prevPercent, dim1.score + dim2.score, name, todayStr); // 传入学生姓名和日期
-    const weighted = 0.4*(dim1.score/40) + 0.4*(dim2.score/40) + 0.2*(dim3.score/ ( (dim1.score+dim2.score)>0 ? ( (dim1.score+dim2.score)*LB442_PARAMS.dim3.percentStart ) : 1) );
-    // 为保持历史显示 total 仍用 0~100 体系：
-    const total = +(weighted*100).toFixed(2);
-    rows.push({name,grade:stu.grade||'',major:stu.major||'',dim1,dim2,dim3,total,prevPercent});
+  const rows=[]; // fallback rows
+  // 优先尝试 FULL worker 计算（包括维度）
+  const worker = getLeaderboardWorker();
+  if(worker){
+    try {
+      performance.mark && performance.mark('lb_full_prepare_start');
+      const payloadStudents = students.filter(s=>s.grade!=='G12').map(stu=>{
+        const name = stu.name; const slots = getStudentTodaySlots(name) || [];
+        const {cleanIntervals, todayStr} = getTodayPracticeForLeaderboard(name);
+        return {name,grade:stu.grade||'',major:stu.major||'',slots:slots.map(sl=>({start:sl.start,end:sl.end})),practiceIntervals:cleanIntervals.map(iv=>({start:iv.start,end:iv.end})),prevPercent: yesterdayMap[name]||0};
+      });
+      performance.mark && performance.mark('lb_full_prepare_end');
+      try{performance.measure && performance.measure('lb_full_prepare','lb_full_prepare_start','lb_full_prepare_end');}catch(_){ }
+      const reqId='full_'+Date.now();
+      leaderboardState.pending=true;
+      worker.onmessage = (e)=>{
+        const msg=e.data||{}; if(msg.reqId!==reqId) return;
+        if(msg.type==='error'){ console.warn('[leaderboard] full worker error', msg.message); leaderboardState.pending=false; fallbackHalf(); return; }
+        if(msg.type==='full-result'){
+          leaderboardState.pending=false;
+          leaderboardState.raw=msg.rows||[]; leaderboardState.lastCompute=Date.now();
+          postComputeFinalize(leaderboardState.raw,startTs,false,msg.cost);
+        }
+      };
+      performance.mark && performance.mark('lb_full_worker_start');
+      worker.postMessage({type:'full',students:payloadStudents,date: new Date().toISOString().slice(0,10), params: LB442_PARAMS, reqId});
+      // 超时回退
+      setTimeout(()=>{ if(leaderboardState.pending){ console.warn('[leaderboard] full worker timeout -> half mode'); try{leaderboardState.pending=false; fallbackHalf();}catch(e){console.error(e);} } }, 180);
+      return; // 等待异步
+    } catch(e){ console.warn('[leaderboard] full worker path failed, fallback half', e); }
   }
-  rows.sort((a,b)=> b.total-a.total || b.dim1.score-a.dim1.score || b.dim2.score-a.dim2.score || b.dim3.score-a.dim3.score || a.name.localeCompare(b.name,'zh'));
-  // 并列排名计算 (标准竞赛排名 1,1,3)
-  let currentRank=0, processed=0, lastKey=null;
-  for(const r of rows){
-    processed++;
-    const keyStr = `${r.total.toFixed(2)}|${r.dim1.score.toFixed(2)}|${r.dim2.score.toFixed(2)}|${r.dim3.score.toFixed(2)}`;
-    if(keyStr!==lastKey){ currentRank=processed; lastKey=keyStr; }
-    r.displayRank = currentRank;
+  // 无 worker 或失败 -> 半模式
+  fallbackHalf();
+  return;
+
+  function fallbackHalf(){
+    // 原半模式：主线程先算维度，再worker排序
+    for(const stu of students){
+      if(stu.grade === 'G12') continue; const name=stu.name; const slots=getStudentTodaySlots(name); const {cleanIntervals,todayStr}=getTodayPracticeForLeaderboard(name); const practiceIntervals=cleanIntervals;
+      const dim1=computeDimension1(slots,practiceIntervals,todayStr);
+      const dim2=computeDimension2(slots,practiceIntervals,todayStr);
+      const prevPercent=yesterdayMap[name]||0;
+      const dim3=computeDimension3FromPrev(prevPercent, dim1.score+dim2.score, name, todayStr);
+      const weighted=0.4*(dim1.score/40)+0.4*(dim2.score/40)+0.2*(dim3.score/((dim1.score+dim2.score)>0?((dim1.score+dim2.score)*LB442_PARAMS.dim3.percentStart):1));
+      const total=+(weighted*100).toFixed(2);
+      rows.push({name,grade:stu.grade||'',major:stu.major||'',dim1,dim2,dim3,total,prevPercent});
+    }
+    const w=getLeaderboardWorker();
+    if(w){
+      const reqId='req_'+Date.now(); leaderboardState.pending=true;
+      w.onmessage=(e)=>{const msg=e.data||{}; if(msg.reqId!==reqId) return; leaderboardState.pending=false; if(msg.type==='error'){console.warn('[leaderboard] half worker error fallback sync'); syncSort(); return;} if(msg.type==='result'){leaderboardState.raw=msg.rows; leaderboardState.lastCompute=Date.now(); postComputeFinalize(leaderboardState.raw,startTs,false,msg.cost);} };
+      try{ w.postMessage({type:'sort',rows,reqId}); return; }catch(ex){console.warn('[leaderboard] half worker post fail',ex);} }
+    syncSort();
   }
-  leaderboardState.raw = rows;
-  leaderboardState.lastCompute=Date.now();
-  if(!isMorningPrev){
-    if(!window.__skipSnapshotOnce){ saveLeaderboardSnapshot(rows);} else window.__skipSnapshotOnce=false;
+  function syncSort(){
+    rows.sort((a,b)=> b.total-a.total || b.dim1.score-a.dim1.score || b.dim2.score-a.dim2.score || b.dim3.score-a.dim3.score || a.name.localeCompare(b.name,'zh'));
+    let currentRank=0,processed=0,lastKey=null; for(const r of rows){processed++; const k=`${r.total.toFixed(2)}|${r.dim1.score.toFixed(2)}|${r.dim2.score.toFixed(2)}|${r.dim3.score.toFixed(2)}`; if(k!==lastKey){currentRank=processed; lastKey=k;} r.displayRank=currentRank; }
+    leaderboardState.raw=rows; leaderboardState.lastCompute=Date.now(); postComputeFinalize(rows,startTs,false);
   }
-  renderLeaderboard();
-  const cost=Date.now()-startTs;
-  if(window.setUpdateStatus) window.setUpdateStatus('updated',{rows:rows.length,cost});
 }
 
 function renderLeaderboard(){
@@ -7400,6 +7467,11 @@ function renderLeaderboard(){
   if(!section) return;
   const tbody = document.querySelector('.leaderboard-table tbody');
   if(!tbody){ section.style.display='none'; return; }
+  // Skeleton 模式：若标记尚未准备数据且有缓存可恢复
+  if(leaderboardState.renderMode==='skeleton'){
+    tbody.innerHTML = Array.from({length:10}).map(()=>`<tr><td colspan="5"><div class="lb-skeleton-row"></div></td></tr>`).join('');
+    return;
+  }
   const rows = leaderboardState.raw || [];
   // 始终显示区块，便于操作“模拟100人”按钮与提示
   section.style.display = 'block';
@@ -7425,16 +7497,16 @@ function renderLeaderboard(){
     
     if(isWeekend){
       tbody.innerHTML = `<tr class="weekend-notice"><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);font-size:15px;">
-        <div style="margin-bottom:16px;font-size:18px;">📅 周末时光</div>
-        <div style="margin-bottom:12px;color:#667eea;font-weight:600;">排行榜计算暂停</div>
-        <div style="margin-bottom:8px;">周末期间排行榜不进行计算与测评</div>
-        <div style="color:#64748b;font-size:13px;">周一将恢复正常</div>
+        <div style="margin-bottom:16px;font-size:18px;">📅 ${t('leaderboard.weekend_title','周末时光')}</div>
+        <div style="margin-bottom:12px;color:#667eea;font-weight:600;">${t('leaderboard.weekend_paused','排行榜计算暂停')}</div>
+        <div style="margin-bottom:8px;">${t('leaderboard.weekend_desc','周末期间排行榜不进行计算与测评')}</div>
+        <div style="color:#64748b;font-size:13px;">${t('leaderboard.weekend_resume','周一将恢复正常')}</div>
       </td></tr>`;
     } else {
       tbody.innerHTML = `<tr class="empty"><td colspan="5" style="text-align:center;padding:30px;color:var(--text-secondary);font-size:14px;">
-        <div style="margin-bottom:8px;">🚫 暂无可计算数据</div>
-    <div style="margin-bottom:8px;">可能原因：1) 学生库为空 2) 所有学生为 G12 被排除 3) 今日尚无练琴/时段数据 4) 数据尚未同步完成</div>
-    <div>请添加学生及其计划时段或等待数据写入后自动刷新。</div>
+        <div style="margin-bottom:8px;">🚫 ${t('leaderboard.empty_title','暂无可计算数据')}</div>
+    <div style="margin-bottom:8px;">${t('leaderboard.empty_reasons','可能原因：1) 学生库为空 2) 所有学生为 G12 被排除 3) 今日尚无练琴/时段数据 4) 数据尚未同步完成')}</div>
+    <div>${t('leaderboard.empty_action','请添加学生及其计划时段或等待数据写入后自动刷新。')}</div>
       </td></tr>`;
     }
     
@@ -7444,58 +7516,57 @@ function renderLeaderboard(){
     const statusEl = document.getElementById('leaderboard-refresh-status');
     if(statusEl) {
       if(isWeekend) {
-        statusEl.textContent='周末暂停';
+  statusEl.textContent = t('leaderboard.weekend_paused','周末暂停');
       } else {
-        statusEl.textContent='空';
+  statusEl.textContent = t('leaderboard.empty','空');
       }
     }
     return;
   }
-  tbody.innerHTML = displayRows.map((r,i)=>{
-    const rank = r.displayRank || (i+1);
-    let rowClass = '';
-    let rankClass = 'rank-cell';
-    let scoreClass = 'score-cell';
-    let nameClass = 'name-cell';
-    
-    // 排名样式
-  if(rank === 1) {
-      rowClass = 'top-1';
-      rankClass += ' rank-1';
-    } else if(rank === 2) {
-      rowClass = 'top-2';
-      rankClass += ' rank-2';
-    } else if(rank === 3) {
-      rowClass = 'top-3';
-      rankClass += ' rank-3';
+  const BATCH_THRESHOLD=80, BATCH_SIZE=40;
+  if(displayRows.length > BATCH_THRESHOLD){
+    tbody.innerHTML='';
+    let idx=0;
+    function paint(){
+      const end=Math.min(idx+BATCH_SIZE, displayRows.length);
+      const frag=document.createDocumentFragment();
+      for(let i=idx;i<end;i++){
+        const r=displayRows[i];
+        const rank=r.displayRank||(i+1);
+        let rowClass='', rankClass='rank-cell', scoreClass='score-cell', nameClass='name-cell';
+        if(rank===1){rowClass='top-1';rankClass+=' rank-1';} else if(rank===2){rowClass='top-2';rankClass+=' rank-2';} else if(rank===3){rowClass='top-3';rankClass+=' rank-3';}
+        const score=r.total; if(score>=90) scoreClass+=' score-excellent'; else if(score>=80) scoreClass+=' score-good'; else if(score>=70) scoreClass+=' score-average'; else scoreClass+=' score-poor';
+        const tr=document.createElement('tr');
+        tr.className=rowClass;
+        tr.innerHTML=`<td class="${rankClass}">${rank<=3?'':rank}</td>
+          <td class="${nameClass}">${escapeHtml(r.name)}</td>
+          <td>${escapeHtml(r.grade||'')}</td>
+          <td>${escapeHtml(r.major||'')}</td>
+          <td class="${scoreClass}">${r.total.toFixed(2)} <button class="mini-help-btn" onclick="showStudentLeaderboardDetail('${escapeHtml(r.name)}')" title="${t('leaderboard.detail_btn_title','查看详细得分')}">?</button></td>`;
+        frag.appendChild(tr);
+      }
+      tbody.appendChild(frag);
+      idx=end;
+      if(idx<displayRows.length) requestAnimationFrame(paint);
     }
-    
-    // 分数颜色
-    const score = r.total;
-    if(score >= 90) {
-      scoreClass += ' score-excellent';
-    } else if(score >= 80) {
-      scoreClass += ' score-good';
-    } else if(score >= 70) {
-      scoreClass += ' score-average';
-    } else {
-      scoreClass += ' score-poor';
-    }
-    
-    return `<tr class="${rowClass}">
-      <td class="${rankClass}">${rank <= 3 ? '' : rank}</td>
-      <td class="${nameClass}">${escapeHtml(r.name)}</td>
-      <td>${escapeHtml(r.grade||'')}</td>
-      <td>${escapeHtml(r.major||'')}</td>
-      <td class="${scoreClass}">${r.total.toFixed(2)} <button class="mini-help-btn" onclick="showStudentLeaderboardDetail('${escapeHtml(r.name)}')" title="查看详细得分">?</button></td>
-    </tr>`;
-  }).join('');
+    requestAnimationFrame(paint);
+  } else {
+    tbody.innerHTML = displayRows.map((r,i)=>{
+      const rank = r.displayRank || (i+1);
+      let rowClass='', rankClass='rank-cell', scoreClass='score-cell', nameClass='name-cell';
+      if(rank===1){rowClass='top-1';rankClass+=' rank-1';} else if(rank===2){rowClass='top-2';rankClass+=' rank-2';} else if(rank===3){rowClass='top-3';rankClass+=' rank-3';}
+      const score=r.total; if(score>=90) scoreClass+=' score-excellent'; else if(score>=80) scoreClass+=' score-good'; else if(score>=70) scoreClass+=' score-average'; else scoreClass+=' score-poor';
+      return `<tr class="${rowClass}"><td class="${rankClass}">${rank<=3?'':rank}</td><td class="${nameClass}">${escapeHtml(r.name)}</td><td>${escapeHtml(r.grade||'')}</td><td>${escapeHtml(r.major||'')}</td><td class="${scoreClass}">${r.total.toFixed(2)} <button class="mini-help-btn" onclick="showStudentLeaderboardDetail('${escapeHtml(r.name)}')" title="${t('leaderboard.detail_btn_title','查看详细得分')}">?</button></td></tr>`;
+    }).join('');
+  }
   
   const toggleBtn = document.getElementById('lb-toggle-more');
   if(toggleBtn){
     if(rows.length>10){
       toggleBtn.style.display='inline-block';
-      toggleBtn.textContent = showAll? '收起' : `展开全部 (${rows.length})`;
+      toggleBtn.textContent = showAll
+        ? t('leaderboard.collapse_action','收起')
+        : t('leaderboard.expand_with_total','展开全部').replace('__total__', rows.length);
     } else toggleBtn.style.display='none';
   }
 }
@@ -7515,11 +7586,17 @@ window.setUpdateStatus = function(type, extra){
   if(!el) return;
   el.dataset.mode = type;
   const map = {
-    idle: '尚未计算',
-    detecting: '检测到新数据，稍后自动刷新…',
-    updating: '计算中…',
-    updated: (extra && extra.rows!=null && extra.cost!=null) ? `已更新 (${extra.rows}人, ${extra.cost}ms)` : '已更新',
-    frozen: (extra && extra.time) ? `🔒 已定格 (${extra.time})` : '🔒 已定格'
+    idle: t('leaderboard.not_computed','尚未计算'),
+    detecting: t('leaderboard.detecting','检测到新数据，稍后自动刷新…'),
+    updating: t('leaderboard.updating','计算中…'),
+    updated: (extra && extra.rows!=null && extra.cost!=null)
+      ? t('leaderboard.updated_with_meta','已更新 (__rows__人, __cost__ms)')
+          .replace('__rows__', extra.rows)
+          .replace('__cost__', extra.cost)
+      : t('leaderboard.updated','已更新'),
+    frozen: (extra && extra.time)
+      ? t('leaderboard.frozen_at','🔒 已定格 (__time__)').replace('__time__', extra.time)
+      : t('leaderboard.frozen','🔒 已定格')
   };
   el.textContent = map[type] || type;
 };
@@ -9046,7 +9123,18 @@ window.clearLeaderboardHistory = function() {
 // 初始化：等核心数据 ready 后首次计算（依赖 existing ready.* 结构）
 (function waitCore(){
   if(typeof ready==='object' && ready.students && ready.slots){
-    computeLeaderboard();
+  // 首次尝试用缓存秒开
+  try{restoreLeaderboardFromCache();}catch(e){console.warn('[leaderboard] restore cache fail',e);}    
+  // 延迟真实计算，保证首屏渲染
+    requestAnimationFrame(()=>{ 
+      performance.mark && performance.mark('lb_schedule_compute');
+      setTimeout(()=>{ 
+        performance.mark && performance.mark('lb_compute_start');
+        computeLeaderboard(); 
+      }, 0); 
+      // 次级延迟任务（日志清理、预取等）
+      setTimeout(()=>{ try{warmupYesterdayRankCache&&warmupYesterdayRankCache();}catch(_){ } },1200);
+    });
   } else { setTimeout(waitCore, 500); }
 })();
 
@@ -9070,6 +9158,28 @@ const i18n = {
   'leaderboard.refresh': '刷新',
   'leaderboard.expand': '展开全部',
   'leaderboard.collapse': '收起',
+  'leaderboard.history_title': '查看历史排行榜',
+  'leaderboard.rules_btn': '📊 测评规则说明',
+  'leaderboard.rank': '排名',
+  'leaderboard.total': '总分',
+  'leaderboard.not_computed': '尚未计算',
+  'leaderboard.weekend_paused': '周末暂停',
+  'leaderboard.empty': '空',
+  'leaderboard.updated': '已更新',
+  'leaderboard.detecting': '检测到新数据，稍后自动刷新…',
+  'leaderboard.updating': '计算中…',
+  'leaderboard.frozen': '🔒 已定格',
+  'leaderboard.updated_with_meta': '已更新 (__rows__人, __cost__ms)',
+  'leaderboard.frozen_at': '🔒 已定格 (__time__)',
+  'leaderboard.expand_with_total': '展开全部 (__total__)',
+  'leaderboard.collapse_action': '收起',
+  'leaderboard.detail_btn_title': '查看详细得分',
+  'leaderboard.weekend_title': '周末时光',
+  'leaderboard.weekend_desc': '周末期间排行榜不进行计算与测评',
+  'leaderboard.weekend_resume': '周一将恢复正常',
+  'leaderboard.empty_title': '暂无可计算数据',
+  'leaderboard.empty_reasons': '可能原因：1) 学生库为空 2) 所有学生为 G12 被排除 3) 今日尚无练琴/时段数据 4) 数据尚未同步完成',
+  'leaderboard.empty_action': '请添加学生及其计划时段或等待数据写入后自动刷新。',
     'nav.sync': '🔄 数据同步',
     
     // 连接状态
@@ -9258,6 +9368,34 @@ const i18n = {
     'nav.students': '👥 Students', 
     'nav.reports': '📈 Reports',
     'nav.sync': '🔄 Sync',
+  // Leaderboard
+  'nav.leaderboard': '🏅Leaderboard',
+  'leaderboard.title': '🏆 442 Practice Leaderboard',
+  'leaderboard.refresh': 'Refresh',
+  'leaderboard.expand': 'Expand All',
+  'leaderboard.collapse': 'Collapse',
+  'leaderboard.history_title': 'View History',
+  'leaderboard.rules_btn': '📊 Evaluation Rules',
+  'leaderboard.rank': 'Rank',
+  'leaderboard.total': 'Total',
+  'leaderboard.not_computed': 'Not Computed',
+  'leaderboard.weekend_paused': 'Weekend Paused',
+  'leaderboard.empty': 'Empty',
+  'leaderboard.updated': 'Updated',
+  'leaderboard.detecting': 'New data detected, refreshing soon…',
+  'leaderboard.updating': 'Calculating…',
+  'leaderboard.frozen': '🔒 Frozen',
+  'leaderboard.updated_with_meta': 'Updated (__rows__ students, __cost__ms)',
+  'leaderboard.frozen_at': '🔒 Frozen (__time__)',
+  'leaderboard.expand_with_total': 'Expand All (__total__)',
+  'leaderboard.collapse_action': 'Collapse',
+  'leaderboard.detail_btn_title': 'View detailed score',
+  'leaderboard.weekend_title': 'Weekend',
+  'leaderboard.weekend_desc': 'Leaderboard paused during weekend',
+  'leaderboard.weekend_resume': 'Will resume on Monday',
+  'leaderboard.empty_title': 'No Computable Data',
+  'leaderboard.empty_reasons': 'Possible: 1) No students 2) All excluded (G12) 3) No practice/slots today 4) Data not synced yet',
+  'leaderboard.empty_action': 'Add students & slots or wait for sync.',
     
     // 连接状态
     'status.online': '🟢 Online',
