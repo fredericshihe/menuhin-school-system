@@ -8701,27 +8701,31 @@
       const studentNameEl = document.getElementById('studentName');
       studentNameEl.textContent = studentName;
 
-      // 获取并显示音符币
+      // 判断是否切换了学生（切换时才重置，同学生刷新时保留旧值避免闪烁）
+      const _isNewStudent = renderStudentDetail._lastStudent !== studentName;
+      renderStudentDetail._lastStudent = studentName;
+
+      // 获取并显示音符币（切换学生时先隐藏，同学生刷新时静默更新）
       const coinBadge = document.getElementById('studentCoinBadge');
       if (coinBadge) {
-        coinBadge.style.display = 'none';
+        if (_isNewStudent) coinBadge.style.display = 'none';
         supabaseClient.from('student_coins').select('balance').eq('student_name', studentName).single()
           .then(({data, error}) => {
-            if (!error && data) {
-              coinBadge.textContent = `🎵 ${data.balance}`;
-              coinBadge.style.display = 'inline-flex';
-            } else {
-              coinBadge.textContent = `🎵 0`;
+            // 只更新当前仍在查看该学生时的结果，防止快速切换时结果乱序
+            if (renderStudentDetail._lastStudent === studentName) {
+              coinBadge.textContent = `🎵 ${(!error && data) ? data.balance : 0}`;
               coinBadge.style.display = 'inline-flex';
             }
           }).catch(() => {});
       }
 
-      // ✅ 修复：立即重置排名分显示，避免残留上一个学生的数据
+      // 排名分：切换学生时重置为占位符，同学生刷新时保留旧值
       const rankValEl = document.getElementById('rankScoreValue');
       const rankMetaEl = document.getElementById('rankMeta');
-      if (rankValEl) rankValEl.textContent = '--';
-      if (rankMetaEl) rankMetaEl.textContent = '加载中...';
+      if (_isNewStudent) {
+        if (rankValEl) rankValEl.textContent = '--';
+        if (rankMetaEl) rankMetaEl.textContent = '加载中...';
+      }
       
       // 管理员模式：在姓名旁边添加调分按钮和显示当前调整
       const existingAdminBtn = studentNameEl.parentElement.querySelector('.admin-detail-btn');
@@ -8813,6 +8817,9 @@
 
       // 4. 更新分数卡片；AI 分析仅在切换学生时重新拉取
       setTimeout(async () => {
+        // 防止快速切换学生时，旧请求的结果覆盖新学生的数据
+        if (renderStudentDetail._lastStudent !== studentName) return;
+
         const rankValEl = document.getElementById('rankScoreValue');
         const rankMetaEl = document.getElementById('rankMeta');
         const aiCard = document.getElementById('aiAnalysisCard');
@@ -8821,6 +8828,9 @@
 
         // 获取分数数据（每次都更新，分数实时变化）
         const scoreData = await fetchStudentScore(studentName);
+
+        // 再次检查：异步等待后确认仍在查看同一学生
+        if (renderStudentDetail._lastStudent !== studentName) return;
 
         if (scoreData && scoreData.current) {
           const cur = scoreData.current;
