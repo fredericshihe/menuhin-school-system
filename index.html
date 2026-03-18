@@ -8824,17 +8824,21 @@
 
         if (scoreData && scoreData.current) {
           const cur = scoreData.current;
-          const score = cur.composite_score || 0;
           const practicedThisWeek = !!scoreData.practicedThisWeek;
+
+          // 优先用综合榜缓存里的 display_score，与排行榜完全一致
+          const compRows = (typeof _wlbData !== 'undefined' && _wlbData['综合榜']) || [];
+          const normName = utils.normalizeStudentName(studentName);
+          const lbHit = compRows.find(r => r.student_name === normName || r.student_name === studentName);
+          const score = lbHit ? (lbHit.display_score || 0) : (cur.composite_score || 0);
 
           if (score === 0 && !practicedThisWeek) {
             if (rankValEl) rankValEl.textContent = '--';
             if (rankMetaEl) rankMetaEl.textContent = '暂无有效记录';
           } else {
-            if (rankValEl) rankValEl.textContent = Math.round(score);
+            if (rankValEl) rankValEl.textContent = Number(score).toFixed(1);
             if (rankMetaEl) {
               if (!practicedThisWeek) {
-                // 本周未练但有历史分：显示历史分 + 提示
                 rankMetaEl.textContent = '本周未练（历史分）';
               } else if (scoreData.rank && scoreData.totalCount) {
                 rankMetaEl.textContent = `第 ${scoreData.rank} / ${scoreData.totalCount} 名`;
@@ -15895,30 +15899,23 @@
           practicedThisWeek = !!(ps && ps.length);
         } catch(e) { /* 查询失败则视为未练 */ }
 
-        // 计算排名：只有本周有练琴的学生才参与横向排名
+        // 排名：直接从综合榜缓存读取，与排行榜显示完全一致
         let rank = null, totalCount = null;
         try {
-          if (practicedThisWeek && (current.composite_score || 0) > 0) {
-            // 拉取本周有练琴的所有学生集合
-            const { data: activePSRows } = await supabaseClient
-              .from('practice_sessions')
-              .select('student_name')
-              .gte('session_start', weekMondayMs);
-            const activeNames = new Set((activePSRows || []).map(r => r.student_name));
-
-            // 拉取这些学生的 student_baseline 分数
-            const { data: allRows } = await supabaseClient
-              .from('student_baseline')
-              .select('student_name, composite_score')
-              .gt('composite_score', 0)
-              .order('composite_score', { ascending: false });
-
-            const ranked = (allRows || []).filter(r => activeNames.has(r.student_name));
-            if (ranked.length) {
-              totalCount = ranked.length;
-              const myScore = current.composite_score || 0;
-              const pos = ranked.findIndex(r => (r.composite_score || 0) <= myScore);
-              rank = pos >= 0 ? pos + 1 : totalCount;
+          const compRows = (typeof _wlbData !== 'undefined' && _wlbData['综合榜']) || [];
+          if (compRows.length > 0) {
+            // 用排行榜缓存数据，排名与榜单完全一致
+            totalCount = compRows.length;
+            const hit = compRows.find(r => r.student_name === normName || r.student_name === name);
+            rank = hit ? hit.rank_no : null;
+          } else if (practicedThisWeek && (current.composite_score || 0) > 0) {
+            // 排行榜尚未加载时的兜底：直接查 RPC
+            const { data: rpcRows } = await supabaseClient.rpc('get_weekly_leaderboards');
+            if (rpcRows) {
+              const comp = rpcRows.filter(r => r.board === '综合榜');
+              totalCount = comp.length;
+              const hit = comp.find(r => r.student_name === normName || r.student_name === name);
+              rank = hit ? hit.rank_no : null;
             }
           }
         } catch(e) {
