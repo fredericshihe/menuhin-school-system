@@ -3678,10 +3678,11 @@
     function loadSupabaseScript() {
       return new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        // 优先使用本地文件，彻底避免 CDN 加载慢的问题
+        script.src = 'libs/supabase.min.js';
         script.onload = resolve;
         script.onerror = () => {
-          // 尝试备用 CDN
+          // 本地文件失败时才回退到 CDN
           const fallbackScript = document.createElement('script');
           fallbackScript.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js';
           fallbackScript.onload = resolve;
