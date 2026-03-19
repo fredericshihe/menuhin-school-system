@@ -2736,15 +2736,15 @@
               <div class="ri-dim">
                 <span class="ri-dim-label" style="background:rgba(16,185,129,.14);color:#059669">进步榜</span>
                 <div class="ri-dim-content">
-                  <div class="ri-dim-title">本周综合分比上周涨幅最大 Top 6</div>
-                  <div class="ri-dim-desc">本周综合分比上周高出越多，排名越靠前。要求上周有练琴记录作为基准，且基线可信度 α ≥ 0.50。</div>
+                  <div class="ri-dim-title">本周综合分相对涨幅最大 Top 6</div>
+                  <div class="ri-dim-desc">用「本周综合分 ÷ 上周综合分」计算相对涨幅（%），基础薄弱进步同样被公平认可。要求：上周综合分 ≥ 10 分，α ≥ 0.50，异常率 ≤ 70%，本周综合分 ≥ 15 分。</div>
                 </div>
               </div>
               <div class="ri-dim">
                 <span class="ri-dim-label" style="background:rgba(139,92,246,.14);color:#7c3aed">稳定榜</span>
                 <div class="ri-dim-content">
-                  <div class="ri-dim-title">练琴最规律、数据最可信 Top 6</div>
-                  <div class="ri-dim-desc">看基线可信度（α），α 越高说明你的练琴时长越稳定、规律。要求：α ≥ 0.65，近10条记录中异常率 ≤ 35%，且近10条记录至少有10条。</div>
+                  <div class="ri-dim-title">近10次平均练琴时长最长 Top 6</div>
+                  <div class="ri-dim-desc">近10次练琴的平均时长越长，说明每次都能踏实练习。要求：α ≥ 0.65，近10条记录中异常率 ≤ 35%，且近10条记录至少有10条。</div>
                 </div>
               </div>
               <div class="ri-dim">
@@ -16087,8 +16087,8 @@
 
     const WLB_SUBTITLES = {
       '综合榜': '本周综合排名分 Top 10 · 仅含本周有练琴同学',
-      '进步榜': '本周综合分比上周涨幅最大 · α ≥0.50',
-      '稳定榜': 'α 最高 · α ≥0.65 · 近10条异常率 ≤35% · 近10条 ≥10条',
+      '进步榜': '本周综合分相对涨幅最大 · α ≥0.50',
+      '稳定榜': '近10次均时最长 · α ≥0.65 · 近10条异常率 ≤35% · 近10条 ≥10条',
       '守则榜': '近10条异常率最低 · ≤50% · α ≥0.60 · 均时 >30min · 本周 ≥3次',
     };
 
@@ -16113,16 +16113,16 @@
         return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">${sc.toFixed(1)}</div><div class="wlb-val-sub">综合分</div></div>`;
       }
       if (board === '进步榜') {
-        const delta = Number(row.trend_score || 0);
-        const c = delta >= 20 ? '#34d399' : delta >= 10 ? '#86efac' : '#93c5fd';
-        const label = delta >= 20 ? '大幅跃升' : delta >= 10 ? '明显进步' : '稳步上升';
-        return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">+${delta}</div><div class="wlb-val-sub">${label}</div></div>`;
+        const pct = Number(row.trend_score || 0);
+        const c = pct >= 30 ? '#34d399' : pct >= 15 ? '#86efac' : '#93c5fd';
+        const label = pct >= 30 ? '大幅跃升' : pct >= 15 ? '明显进步' : '稳步上升';
+        return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">+${pct.toFixed(1)}%</div><div class="wlb-val-sub">${label}</div></div>`;
       }
       if (board === '稳定榜') {
+        const dur = Number(row.recent10_mean_dur || row.mean_duration || 0).toFixed(1);
         const al = Number(row.alpha || 0);
-        const dur = Number(row.mean_duration || 0).toFixed(1);
-        const c = al >= 0.9 ? '#93c5fd' : al >= 0.75 ? '#a5b4fc' : '#94a3b8';
-        return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">${al.toFixed(3)}</div><div class="wlb-val-sub">${dur}min/次</div></div>`;
+        const durC = Number(dur) >= 60 ? '#34d399' : Number(dur) >= 45 ? '#86efac' : '#93c5fd';
+        return `<div class="wlb-right"><div class="wlb-val" style="color:${durC}">${dur}min</div><div class="wlb-val-sub">α ${al.toFixed(3)}</div></div>`;
       }
       if (board === '守则榜') {
         const or = Number(row.recent10_outlier_rate || 0);
