@@ -2736,8 +2736,8 @@
               <div class="ri-dim">
                 <span class="ri-dim-label" style="background:rgba(16,185,129,.14);color:#059669">进步榜</span>
                 <div class="ri-dim-content">
-                  <div class="ri-dim-title">本周 vs 上一个练琴周，进步最大 Top 6</div>
-                  <div class="ri-dim-desc">本周比你上一次练琴的那周进步幅度越大，排名越靠前。要求数据足够可靠：近10条异常练琴率不超过 60%，且基线可信度 α ≥ 0.60。</div>
+                  <div class="ri-dim-title">本周综合分比上周涨幅最大 Top 6</div>
+                  <div class="ri-dim-desc">本周综合分比上周高出越多，排名越靠前。要求上周有练琴记录作为基准，且基线可信度 α ≥ 0.50。</div>
                 </div>
               </div>
               <div class="ri-dim">
@@ -16087,7 +16087,7 @@
 
     const WLB_SUBTITLES = {
       '综合榜': '本周综合排名分 Top 10 · 仅含本周有练琴同学',
-      '进步榜': '进步幅度最大 · 近10条异常率 ≤60% · α ≥0.60',
+      '进步榜': '本周综合分比上周涨幅最大 · α ≥0.50',
       '稳定榜': 'α 最高 · α ≥0.65 · 近10条异常率 ≤35% · 近10条 ≥10条',
       '守则榜': '近10条异常率最低 · ≤50% · α ≥0.60 · 均时 >30min · 本周 ≥3次',
     };
@@ -16113,11 +16113,10 @@
         return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">${sc.toFixed(1)}</div><div class="wlb-val-sub">综合分</div></div>`;
       }
       if (board === '进步榜') {
-        const bt = Number(row.trend_score || 0);
-        const btPct = (bt * 100).toFixed(1);
-        const c = bt > 0.65 ? '#34d399' : bt > 0.5 ? '#86efac' : '#94a3b8';
-        const label = bt > 0.65 ? '强势上升' : bt > 0.5 ? '稳步向好' : '持平';
-        return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">${btPct}</div><div class="wlb-val-sub">${label}</div></div>`;
+        const delta = Number(row.trend_score || 0);
+        const c = delta >= 20 ? '#34d399' : delta >= 10 ? '#86efac' : '#93c5fd';
+        const label = delta >= 20 ? '大幅跃升' : delta >= 10 ? '明显进步' : '稳步上升';
+        return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">+${delta}</div><div class="wlb-val-sub">${label}</div></div>`;
       }
       if (board === '稳定榜') {
         const al = Number(row.alpha || 0);
