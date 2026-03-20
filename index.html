@@ -16111,7 +16111,7 @@
       if (board === '综合榜') {
         const sc = Number(row.display_score || 0);
         const c = sc >= 70 ? '#34d399' : sc >= 40 ? '#93c5fd' : '#94a3b8';
-        return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">${Math.round(sc)}</div><div class="wlb-val-sub">综合分</div></div>`;
+        return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">${sc.toFixed(1)}</div><div class="wlb-val-sub">综合分</div></div>`;
       }
       if (board === '进步榜') {
         const gain = Number(row.trend_score || 0);
