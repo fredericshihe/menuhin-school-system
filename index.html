@@ -16088,9 +16088,9 @@
 
     const WLB_SUBTITLES = {
       '综合榜': '本周综合排名分 Top 10 · 仅含本周有练琴同学',
-      '进步榜': '本周综合分相对涨幅最大 · α ≥0.50',
-      '稳定榜': '近10次均时最长 · α ≥0.65 · 近10条异常率 ≤35% · 近10条 ≥10条',
-      '守则榜': '近10条异常率最低 · ≤50% · α ≥0.60 · 均时 >30min · 本周 ≥3次',
+      '进步榜': '本周综合分绝对涨分最大 · 本周 ≥2 次 · 异常率 ≤50%',
+      '稳定榜': 'α 可信度最高 · α ≥0.55 · 近10条 ≥8条 · 异常率 ≤40%',
+      '守则榜': '近10条异常率最低 · α ≥0.55 · 均时 >25min · 近10条 ≥4条 · 本周 ≥3次',
     };
 
     const WLB_MAJ_SHORT = m => {
@@ -16114,10 +16114,12 @@
         return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">${sc.toFixed(1)}</div><div class="wlb-val-sub">综合分</div></div>`;
       }
       if (board === '进步榜') {
-        const pct = Number(row.trend_score || 0);
-        const c = pct >= 30 ? '#34d399' : pct >= 15 ? '#86efac' : '#93c5fd';
-        const label = pct >= 30 ? '大幅跃升' : pct >= 15 ? '明显进步' : '稳步上升';
-        return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">+${pct.toFixed(1)}%</div><div class="wlb-val-sub">${label}</div></div>`;
+        const gain = Number(row.trend_score || 0);
+        // 绝对涨分：≥8分=大幅跃升，≥3分=明显进步，>0=稳步上升
+        const c = gain >= 8 ? '#34d399' : gain >= 3 ? '#86efac' : '#93c5fd';
+        const label = gain >= 8 ? '大幅跃升' : gain >= 3 ? '明显进步' : '稳步上升';
+        const sign = gain > 0 ? '+' : '';
+        return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">${sign}${gain.toFixed(1)}<span style="font-size:.7em;opacity:.8"> 分</span></div><div class="wlb-val-sub">${label}</div></div>`;
       }
       if (board === '稳定榜') {
         const dur = Number(row.recent10_mean_dur || row.mean_duration || 0).toFixed(1);
