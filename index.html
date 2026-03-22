@@ -448,7 +448,7 @@
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 200ms ease;
+      transition: background-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -477,12 +477,14 @@
       transform: scale(0);
       opacity: 0;
       transform-origin: center center;
-      transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+      transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease;
       display: flex;
       flex-direction: column;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-  will-change: transform, opacity;
+      will-change: transform, opacity;
+      contain: layout style paint;
+      backface-visibility: hidden;
     }
     .list-view.expanding {
       transform: scale(1);
@@ -557,7 +559,7 @@
         animation-duration: 150ms !important; 
         touch-action: manipulation; 
       }
-      .list-view { transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1); }
+      .list-view { transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1), opacity 160ms ease; }
     }
     .stu-card:hover { 
       transform: translateY(-1px); 
@@ -623,6 +625,7 @@
       flex-direction: column;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
+      will-change: transform;
     }
     
     .detail-view.active {
@@ -695,6 +698,13 @@
   .coin-badge-detail:hover {
     background: rgba(251, 191, 36, 0.25);
     transform: translateY(-1px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto !important; }
+    .list-view, .detail-view, .stu-card, .view-details-btn, .back-btn, .info-card, .status-card, .timeline-card, .history-card {
+      transition: none !important;
+      animation: none !important;
+    }
   }
 
   /* 音符币流水弹窗样式 */
@@ -3057,6 +3067,8 @@
     if(fallbackPollTimer) return;
     fallbackPollTimer = setInterval(()=>{
       if(!navigator.onLine) return;
+      // 页面不可见时暂停兜底轮询，降低后台资源占用
+      if (document.hidden) return;
       
       // 兜底数据同步
       const now = new Date();
@@ -3092,7 +3104,7 @@
   // === 调试日志统一入口 ===
   // 将 DEBUG 置为 false 可静默所有 dbg 日志，而不影响 console.error/warn。
   // ✅ 问题已修复，关闭调试模式以提高性能
-  const DEBUG = true; // 临时开启调试模式，查看房间样式问题
+  const DEBUG = false; // 默认关闭调试日志，减少主线程阻塞与掉帧
   window.DEBUG = DEBUG; // 设置为全局变量以便其他代码访问
   // 日志节流：每秒最多输出 MAX_LOGS_PER_SEC 条；超过的合并为一条摘要。
   const MAX_LOGS_PER_SEC = 80; // 安全上限（可调）
@@ -5364,10 +5376,17 @@
     function computeLiveTodayTotal(student){
       try {
         // 复用 calculateDayData 以保证口径统一（包括进行中会话裁剪窗口逻辑）
-        return (calculateDayData(student.name, new Date()).in + calculateDayData(student.name, new Date()).out) || 0;
+        const dayData = calculateDayData(student.name, new Date());
+        return (dayData.in + dayData.out) || 0;
       } catch(e){
         return getTodayTotalMinutes(student);
       }
+    }
+
+    const MAX_VISIBLE_CARD_REFRESH = 48;
+    function isCardInViewport(el, threshold = 80) {
+      const rect = el.getBoundingClientRect();
+      return rect.bottom >= -threshold && rect.top <= (window.innerHeight + threshold);
     }
 
     function refreshListCardTimes(){
@@ -5376,8 +5395,10 @@
       if(!grid) return;
       const cards = grid.querySelectorAll('.stu-card');
       if(!cards.length) return;
-      const now = Date.now();
+      let refreshed = 0;
       cards.forEach(card=>{
+        if (refreshed >= MAX_VISIBLE_CARD_REFRESH) return;
+        if (!isCardInViewport(card)) return;
         const name = card.getAttribute('data-name');
         if(!name) return;
         const student = appState.students.get(name);
@@ -5392,6 +5413,7 @@
           domMinsEl.style.animation = 'cardUpdate 0.6s ease';
           setTimeout(()=>{ domMinsEl.style.animation=''; }, 650);
         }
+        refreshed++;
       });
     }
 
@@ -5656,6 +5678,24 @@
       });
     }
 
+    function createStudentCardElement(studentCardData, category, index, isMobile) {
+      const div = document.createElement('div');
+      div.className = 'stu-card';
+      div.setAttribute('data-name', studentCardData.name);
+      div.setAttribute('data-category', category);
+      if (!isMobile) div.style.animationDelay = `${Math.min(index * 15, 180)}ms`;
+      div.addEventListener('click', () => openStudentDetail(studentCardData.name));
+      div.innerHTML = `
+        <div class="stu-line1">
+          <span class="stu-name">${studentCardData.name}</span>
+        </div>
+        <div class="stu-meta">${studentCardData.metaText || ''}</div>
+        <div class="stu-mins">${utils.formatDurationFull(Math.max(0, studentCardData.minutes))}</div>
+        <div class="stu-detail">今日总练习时长</div>
+      `;
+      return div;
+    }
+
     function renderStudentList(category) {
   // 防抖/去重：如果数据签名未变化则不重绘，避免返回详情页时多次触发导致闪烁
   if(!window.__studentListRender){ window.__studentListRender={ lastSig:null, lastCategory:null }; }
@@ -5692,8 +5732,8 @@
       // ✅ 修复：优先使用增量更新，保留滚动位置，避免全量 innerHTML 替换导致页面弹顶
       const categoryChanged = window.__studentListRender.lastCategory !== category;
       window.__studentListRender.lastCategory = category;
-      const existingCards = grid.querySelectorAll('.stu-card');
-      const existingNames = new Set([...existingCards].map(c => c.getAttribute('data-name')));
+      const existingCards = Array.from(grid.querySelectorAll('.stu-card'));
+      const existingCardMap = new Map(existingCards.map(card => [card.getAttribute('data-name'), card]));
       const newNames = new Set(items.map(s => s.name));
       const canIncrementalUpdate = !categoryChanged && existingCards.length > 0;
 
@@ -5708,9 +5748,10 @@
           }
         });
 
-        // 2. 更新或新增卡片，按 items 顺序排列
+        // 2. 更新或新增卡片，按 items 顺序重排（避免反复 querySelector）
+        const fragment = document.createDocumentFragment();
         items.forEach((s, index) => {
-          let card = grid.querySelector(`.stu-card[data-name="${s.name}"]`);
+          let card = existingCardMap.get(s.name);
           if (card) {
             // 已存在：只更新内容，不改 DOM 结构（保留滚动不抖动）
             const minsEl = card.querySelector('.stu-mins');
@@ -5718,54 +5759,39 @@
             const newMins = utils.formatDurationFull(Math.max(0, s.minutes));
             if (minsEl && minsEl.textContent !== newMins) minsEl.textContent = newMins;
             if (metaEl && metaEl.textContent !== (s.metaText || '')) metaEl.textContent = s.metaText || '';
+            card.setAttribute('data-category', category);
           } else {
-            // 新增卡片
-            const div = document.createElement('div');
-            div.className = 'stu-card';
-            div.setAttribute('data-name', s.name);
-            div.setAttribute('data-category', category);
-            if (!isMobile) div.style.animationDelay = `${Math.min(index * 15, 180)}ms`;
-            div.setAttribute('onclick', `openStudentDetail('${s.name}')`);
-            div.innerHTML = `
-              <div class="stu-line1">
-                <span class="stu-name">${s.name}</span>
-              </div>
-              <div class="stu-meta">${s.metaText || ''}</div>
-              <div class="stu-mins">${utils.formatDurationFull(Math.max(0, s.minutes))}</div>
-              <div class="stu-detail">今日总练习时长</div>
-            `;
-            grid.appendChild(div);
+            card = createStudentCardElement(s, category, index, isMobile);
           }
+          fragment.appendChild(card);
         });
+        grid.appendChild(fragment);
 
         // 恢复滚动位置
         const listEl = grid.closest('.list-view');
         if (listEl) listEl.scrollTop = savedScrollTop;
       } else {
         // 全量重建（切换分类或首次渲染）
-        const html = items.map((s, index) => `
-          <div class="stu-card" data-name="${s.name}" data-category="${category}" style="${isMobile ? '' : `animation-delay: ${Math.min(index * 15, 180)}ms;`}" onclick="openStudentDetail('${s.name}')">
-            <div class="stu-line1">
-              <span class="stu-name">${s.name}</span>
-            </div>
-            <div class="stu-meta">${s.metaText || ''}</div>
-            <div class="stu-mins">${utils.formatDurationFull(Math.max(0, s.minutes))}</div>
-            <div class="stu-detail">今日总练习时长</div>
-          </div>
-        `).join('');
-        scheduleDOM(()=>{ grid.innerHTML = html; }, 2);
+        const fragment = document.createDocumentFragment();
+        items.forEach((s, index) => {
+          fragment.appendChild(createStudentCardElement(s, category, index, isMobile));
+        });
+        scheduleDOM(()=>{
+          grid.innerHTML = '';
+          grid.appendChild(fragment);
+        }, 2);
       }
     }
 
     function updateViews() {
-      console.log('updateViews 被调用，当前 uiState.view:', uiState.view);
+      dbg('updateViews 被调用，当前 uiState.view:', uiState.view);
       
       const home = document.getElementById('homeView');
       const list = document.getElementById('listView');
       const detail = document.getElementById('detailView');
   const ranking = document.getElementById('rankingView');
       
-      console.log('视图元素状态:', {
+      dbg('视图元素状态:', {
         home: home ? '存在' : '不存在',
         list: list ? '存在' : '不存在', 
         detail: detail ? '存在' : '不存在',
@@ -5868,6 +5894,7 @@
         }
       } else if (uiState.view === 'detail') {
         // 展开详情视图
+        const isTransitioningToDetail = !uiState._dataRefresh && uiState.previousView !== 'detail';
         home.hidden = true;
         if (ranking) {
           ranking.classList.remove('expanding');
@@ -5877,8 +5904,8 @@
         list.hidden = true;
         detail.hidden = false;
         detail.classList.add('active');
-        // 重置滚动位置
-        detail.scrollTop = 0;
+        // 只有真正切换到详情页时才重置滚动，避免实时刷新过程中发生“强制跳顶”
+        if (isTransitioningToDetail) detail.scrollTop = 0;
         renderStudentDetail(uiState.selectedStudent);
   startWeekChartAutoRefresh();
   startCurrentDurationUpdate();
@@ -6115,6 +6142,8 @@
     let startX = 0, startY = 0, startTime = 0;
     let dragging = false;
     let activeEl = null; // 被平移的视图元素
+    let swipeRaf = null;
+    let pendingDx = 0;
 
     // 获取当前可见的视图元素及其对应的"返回"操作
     function getSwipeTarget() {
@@ -6171,15 +6200,26 @@
         return;
       }
       if (dx <= 0) return;
-      const progress = Math.min(dx / window.innerWidth, 1);
-      // 跟手平移 + 轻微缩放（模拟 iOS 层次感）
-      activeEl.style.transform = `translateX(${dx}px)`;
-      activeEl.style.boxShadow = `${-4 * (1 - progress) * 20}px 0 40px rgba(0,0,0,${0.15 * (1 - progress)})`;
+      pendingDx = dx;
+      if (!swipeRaf) {
+        swipeRaf = requestAnimationFrame(() => {
+          swipeRaf = null;
+          if (!activeEl) return;
+          const progress = Math.min(pendingDx / window.innerWidth, 1);
+          // 跟手平移 + 轻微缩放（模拟 iOS 层次感）
+          activeEl.style.transform = `translateX(${pendingDx}px)`;
+          activeEl.style.boxShadow = `${-4 * (1 - progress) * 20}px 0 40px rgba(0,0,0,${0.15 * (1 - progress)})`;
+        });
+      }
     }, { passive: true });
 
     function finishGesture(e) {
       if (!dragging || !activeEl) return;
       dragging = false;
+      if (swipeRaf) {
+        cancelAnimationFrame(swipeRaf);
+        swipeRaf = null;
+      }
       const touch = (e.changedTouches || e.touches)[0];
       const dx = touch ? touch.clientX - startX : 0;
       const elapsed = Date.now() - startTime;
@@ -6318,9 +6358,7 @@
       // 🚀 性能优化：延迟执行以显示点击反馈
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          console.log('从通用方式进入学生详情:', studentName);
-          console.log('当前视图:', uiState.view);
-          console.log('当前 rankingOrigin:', uiState.rankingOrigin);
+          dbg('从通用方式进入学生详情:', studentName);
           
           uiState.previousView = uiState.view;
           uiState.view = 'detail';
@@ -6329,10 +6367,10 @@
           // 如果不是从排行榜进入的，清除 rankingOrigin，避免影响返回逻辑
           if (uiState.view !== 'ranking') {
             uiState.rankingOrigin = null;
-            console.log('清除 rankingOrigin（非排行榜路径）');
+            dbg('清除 rankingOrigin（非排行榜路径）');
           }
           
-          console.log('更新后的 uiState:', uiState);
+          dbg('更新后的 uiState:', uiState);
           updateViews();
         });
       });
@@ -10014,9 +10052,17 @@
     
     // 时间轴专用WebSocket连接
     let timelineWebSocket = null;
+    let timelineHeartbeatTimer = null;
     let wsReconnectAttempts = 0;
     const WS_MAX_RECONNECT_ATTEMPTS = 3;
     const WS_RECONNECT_DELAY_BASE = 1000;
+
+    function clearTimelineHeartbeat() {
+      if (timelineHeartbeatTimer) {
+        clearInterval(timelineHeartbeatTimer);
+        timelineHeartbeatTimer = null;
+      }
+    }
     
     /**
      * 建立时间轴专用WebSocket连接
@@ -10054,7 +10100,8 @@
           });
           
           // 定期发送心跳
-          setInterval(() => {
+          clearTimelineHeartbeat();
+          timelineHeartbeatTimer = setInterval(() => {
             if (timelineWebSocket?.readyState === WebSocket.OPEN) {
               timelineWebSocket.send(JSON.stringify({
                 topic: 'phoenix',
@@ -10077,16 +10124,19 @@
         
         timelineWebSocket.onclose = () => {
           dbg('🌐 时间轴WebSocket连接已关闭');
+          clearTimelineHeartbeat();
           attemptWebSocketReconnect();
         };
         
         timelineWebSocket.onerror = (error) => {
           dbg('🌐 时间轴WebSocket错误:', error);
+          clearTimelineHeartbeat();
           attemptWebSocketReconnect();
         };
         
       } catch (error) {
         dbg('WebSocket创建失败:', error);
+        clearTimelineHeartbeat();
         attemptWebSocketReconnect();
       }
     }
@@ -10134,7 +10184,7 @@
       dbg('� 练琴记录实时更新:', { eventType, studentName, action });
       
       // 如果是当前查看的学生，立即更新时间轴
-      if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
+      if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
         setTimeout(() => {
           updateTimelineIncremental(studentName);
           showTimelineNotification(action, studentName);
@@ -10258,7 +10308,7 @@
       dbg(`🔮 乐观更新: ${studentName} ${action}${roomName ? ` (${roomName})` : ''}`);
       
       // 立即更新时间轴（如果是当前学生）
-      if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
+      if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
         // 临时添加到日志数据中
         const tempLogs = [...(appState.practiceLogs || []), predictedLog];
         const tempNormalized = [...(appState.practiceLogsNormalized || []), predictedLog];
@@ -10580,7 +10630,7 @@
       }
       
       // 如果当前在学生详情页，更新时间段显示
-      if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
+      if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
         updateStudentDetailSlotsOptimistic(studentName, weekday, operation, updateId);
       }
     }
@@ -10648,7 +10698,7 @@
       });
       
       // 如果当前在学生详情页，更新详情信息
-      if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
+      if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
         updateStudentDetailInfoOptimistic(studentName, changes, updateId);
       }
     }
@@ -10693,7 +10743,7 @@
         updateSlotsUI(studentName, changes);
         
         // 如果当前正在查看该学生详情，实时更新时间段卡片
-        if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
+        if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
           updateStudentDetailSlots(studentName, currentSlots);
         }
         
@@ -10875,7 +10925,7 @@
       if (changes.studentChanged && changes.occupantStudents.length > 0) {
         // 为每个学生更新详情页（如果正在查看该学生）
         changes.occupantStudents.forEach(studentName => {
-          if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
+          if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
             updateStudentDetailCurrentRoom(studentName, roomName);
           }
         });
@@ -10986,7 +11036,7 @@
       updateListStudentInfo(studentName, changes, studentData);
       
       // 如果当前正在查看该学生详情，更新详情页
-      if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
+      if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
         updateStudentDetailInfo(studentName, studentData);
       }
       
@@ -11181,7 +11231,7 @@
      * 更新学生详情页基础信息
      */
     function updateStudentDetailInfo(studentName, studentData) {
-      if (uiState.view !== 'detail' || uiState.currentStudent !== studentName) return;
+      if (uiState.view !== 'detail' || uiState.selectedStudent !== studentName) return;
       
       // 更新详情页的学生信息显示
       const detailContainer = document.getElementById('detailView');
@@ -11354,10 +11404,10 @@
 
     // 更新历史七天总结
     async function updateWeekHistory(studentName) {
-      console.log('updateWeekHistory called for:', studentName);
+      dbg('updateWeekHistory called for:', studentName);
       // 计算七天数据（优先使用后端备份）
       const weekData = await calculateWeekData(studentName);
-      console.log('weekData:', weekData);
+      dbg('weekData:', weekData);
 
       // 渲染条形图
       renderWeekChart(weekData.dailyData);
@@ -11462,16 +11512,16 @@
 
     // 渲染周练琴条形图
   function renderWeekChart(dailyData) {
-      console.log('renderWeekChart called with:', dailyData);
+      dbg('renderWeekChart called with:', dailyData);
       const container = document.getElementById('weekChart');
-      console.log('weekChart container:', container);
+      dbg('weekChart container:', container);
       if (!container) {
         console.error('weekChart container not found!');
         return;
       }
       
       const maxTotal = Math.max(...dailyData.map(d => (d.total ?? (d.inMinutes + d.outMinutes))), 1);
-      console.log('maxTotal:', maxTotal);
+      dbg('maxTotal:', maxTotal);
 
       let html = '';
       dailyData.forEach((day, idx) => {
@@ -13596,6 +13646,10 @@
       
       scheduleHeartbeat() {
         if (!this.isMonitoring) return;
+        if (this.heartbeatInterval) {
+          clearInterval(this.heartbeatInterval);
+          this.heartbeatInterval = null;
+        }
         
         this.heartbeatInterval = setInterval(() => {
           this.performHeartbeat();
@@ -13608,28 +13662,24 @@
         const startTime = Date.now();
         
         try {
-          // 使用简单的presence事件作为心跳
-          const heartbeatPromise = new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-              reject(new Error('心跳超时'));
-            }, 10000); // 10秒超时
-            
-            // 发送心跳并监听响应
-            realtimeChannel.track({ 
-              heartbeat: true, 
-              timestamp: startTime,
-              client_id: 'practice-tracker-' + Math.random().toString(36).substr(2, 9)
+          // 避免每次心跳动态注册 channel 事件，防止监听器堆积与内存增长
+          const channelState = realtimeChannel?.state || '';
+          const looksConnected = channelState === 'joined' || channelState === 'subscribed' || channelState === 'SUBSCRIBED';
+          if (!looksConnected) throw new Error(`channel_state=${channelState || 'unknown'}`);
+
+          // 每次心跳都做本地链路检查；每第3次额外做一次轻量 DB 探测
+          this._probeCount = (this._probeCount || 0) + 1;
+          if (this._probeCount % 3 === 0 && supabaseClient) {
+            const probePromise = supabaseClient
+              .from('rooms')
+              .select('name')
+              .limit(1);
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('probe_timeout')), 8000);
             });
-            
-            // 监听一次性的presence事件响应
-            const unsubscribe = realtimeChannel.on('presence', { event: 'sync' }, () => {
-              clearTimeout(timeout);
-              unsubscribe();
-              resolve();
-            });
-          });
-          
-          await heartbeatPromise;
+            const probeResult = await Promise.race([probePromise, timeoutPromise]);
+            if (probeResult?.error) throw probeResult.error;
+          }
           
           const pingTime = Date.now() - startTime;
           this.recordPing(pingTime);
@@ -13654,6 +13704,7 @@
         if (this.pingHistory.length > this.maxPingHistory) {
           this.pingHistory.shift();
         }
+        const prevFrequency = this.heartbeatFrequency;
         
         // 计算连接质量
         const avgPing = this.pingHistory.reduce((a, b) => a + b, 0) / this.pingHistory.length;
@@ -13667,6 +13718,9 @@
         } else {
           this.connectionQuality = 'poor';
           this.heartbeatFrequency = 15000; // 15秒，更频繁检测
+        }
+        if (prevFrequency !== this.heartbeatFrequency && this.isMonitoring) {
+          this.scheduleHeartbeat();
         }
       }
       
@@ -13730,6 +13784,15 @@
       
       if (isPageVisible) {
         dbg('页面重新可见，检查连接状态');
+        // 恢复与当前视图相关的定时任务
+        if (uiState.view === 'list') startListCardRefresh();
+        if (uiState.view === 'detail') {
+          startCurrentDurationUpdate();
+          startWeekChartAutoRefresh();
+          const tl = document.getElementById('todayTimeline');
+          if (tl) startLiveTimelineUpdate(tl);
+        }
+        if (realtimeChannel) healthMonitor.startMonitoring();
         // 页面重新可见时，适度延迟后检查连接
         setTimeout(() => {
           if (realtimeChannel && !isConnected) {
@@ -13739,6 +13802,12 @@
         }, 1000);
       } else {
         dbg('页面隐藏，降低更新频率');
+        // 页面隐藏时停止高频 UI 定时器，避免后台持续消耗
+        stopListCardRefresh();
+        stopCurrentDurationUpdate();
+        stopWeekChartAutoRefresh();
+        stopLiveTimelineUpdate();
+        healthMonitor.stopMonitoring();
       }
     });
     
@@ -13816,7 +13885,7 @@
           });
           
           // ✅ 集成深度优化：使用增量更新+WebSocket+乐观预测（带历史数据保护）
-          if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
+          if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
             // 🛡️ 检查时间窗口，避免在敏感时间处理可能影响历史数据的更新
             const updateTime = new Date();
             const minutesSinceMidnight = updateTime.getHours() * 60 + updateTime.getMinutes();
@@ -16241,8 +16310,13 @@
     }
 
     // 当 practice_logs 有 clear 事件时，延迟 5 秒刷新（等 compute_student_score 完成）
+    let _wlbRefreshDebounceTimer = null;
     function scheduleWlbRefresh() {
-      setTimeout(loadWeeklyLeaderboards, 5000);
+      if (_wlbRefreshDebounceTimer) clearTimeout(_wlbRefreshDebounceTimer);
+      _wlbRefreshDebounceTimer = setTimeout(() => {
+        _wlbRefreshDebounceTimer = null;
+        loadWeeklyLeaderboards();
+      }, 5000);
     }
 
     // 音符币流水弹窗逻辑
