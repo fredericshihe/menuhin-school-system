@@ -127,6 +127,12 @@
       height: 100%;
     }
 
+    html.app-scroll-locked,
+    body.app-scroll-locked {
+      overflow: hidden !important;
+      overscroll-behavior: none !important;
+    }
+
     body {
       /* 系统 / 本地字体栈：避免外部字体请求失败 */
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, "Segoe UI", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", Roboto, sans-serif;
@@ -491,11 +497,14 @@
       display: flex;
       flex-direction: column;
       overflow-y: auto;
+      overscroll-behavior-y: contain;
+      overscroll-behavior-x: none;
       -webkit-overflow-scrolling: touch;
       will-change: transform, opacity;
       contain: layout style paint;
       backface-visibility: hidden;
       padding-bottom: var(--safe-bottom);
+      touch-action: pan-y;
     }
     .list-view.expanding {
       transform: scale(1);
@@ -636,9 +645,12 @@
       display: flex;
       flex-direction: column;
       overflow-y: auto;
+      overscroll-behavior-y: contain;
+      overscroll-behavior-x: none;
       -webkit-overflow-scrolling: touch;
       will-change: transform;
       padding-bottom: var(--safe-bottom);
+      touch-action: pan-y;
     }
     
     .detail-view.active {
@@ -2714,7 +2726,7 @@
           <span class="wlb-title">🏅 本周排行榜</span>
           <div style="display:flex;align-items:center;gap:8px;">
             <span class="wlb-updated" id="wlbUpdated"></span>
-            <button class="ranking-info-btn" onclick="document.getElementById('rankingInfoModal').classList.add('active')" title="榜单规则说明">?</button>
+            <button class="ranking-info-btn" onclick="openRankingInfoModal()" title="榜单规则说明">?</button>
           </div>
         </div>
         <!-- Tab 切换 -->
@@ -2731,11 +2743,11 @@
       </div>
 
       <!-- 排行榜规则说明弹窗 -->
-      <div class="ranking-info-modal" id="rankingInfoModal" onclick="if(event.target===this)this.classList.remove('active')">
+      <div class="ranking-info-modal" id="rankingInfoModal" onclick="if(event.target===this)closeRankingInfoModal()">
         <div class="ranking-info-dialog">
           <div class="ri-header">
             <span class="ri-title">🏅 排行榜说明</span>
-            <button class="ri-close" onclick="document.getElementById('rankingInfoModal').classList.remove('active')">✕</button>
+            <button class="ri-close" onclick="closeRankingInfoModal()">✕</button>
           </div>
 
           <!-- Tab 切换栏 -->
@@ -5262,6 +5274,51 @@
   rankingOrigin: null // 记录进入“完整排行榜”的来源（home 或 list）
     };
 
+    const rootScrollLockState = { active: false, scrollTop: 0 };
+    const modalScrollLockSources = new Set();
+    function lockRootScroll() {
+      if (rootScrollLockState.active) return;
+      rootScrollLockState.active = true;
+      rootScrollLockState.scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
+      document.documentElement.classList.add('app-scroll-locked');
+      document.body.classList.add('app-scroll-locked');
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${rootScrollLockState.scrollTop}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
+    }
+
+    function unlockRootScroll() {
+      if (!rootScrollLockState.active) return;
+      const restoreTop = rootScrollLockState.scrollTop;
+      rootScrollLockState.active = false;
+      document.documentElement.classList.remove('app-scroll-locked');
+      document.body.classList.remove('app-scroll-locked');
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      window.scrollTo(0, restoreTop);
+    }
+
+    function acquireModalScrollLock(source = 'modal') {
+      modalScrollLockSources.add(source);
+      syncRootScrollLock();
+    }
+
+    function releaseModalScrollLock(source = 'modal') {
+      modalScrollLockSources.delete(source);
+      syncRootScrollLock();
+    }
+
+    function syncRootScrollLock() {
+      const shouldLock = uiState.view !== 'home' || modalScrollLockSources.size > 0;
+      if (shouldLock) lockRootScroll();
+      else unlockRootScroll();
+    }
+
     // 排行榜显示模式
     let rankingMode = 'daily'; // 'daily' 或 'weekly'
     // 排行榜模式 HTML 内存缓存，避免日/周切换闪烁
@@ -5282,7 +5339,7 @@
     // 自定义异步密码弹窗，每次都要求输入密码
     function ensureAdminAuthenticated(){
       return new Promise(resolve => {
-        if(document.querySelector('.admin-auth-dialog')) return; // 已存在则不重复
+        if(document.querySelector('.admin-auth-dialog')) { resolve(false); return; } // 已存在则不重复
         const wrap = document.createElement('div');
         wrap.className = 'admin-auth-dialog';
         wrap.innerHTML = `
@@ -5310,12 +5367,21 @@
         `;
         document.head.appendChild(style);
         document.body.appendChild(wrap);
+        acquireModalScrollLock('admin-auth');
         const inputEl = wrap.querySelector('#adminAuthPassword');
         const errEl = wrap.querySelector('#adminAuthError');
         const okBtn = wrap.querySelector('#adminAuthOk');
         const cancelBtn = wrap.querySelector('#adminAuthCancel');
         const toggleBtn = wrap.querySelector('#adminAuthToggle');
-        function close(res){ wrap.remove(); resolve(res); }
+        const escHandler = (e) => {
+          if(e.key==='Escape' && document.body.contains(wrap)) close(false);
+        };
+        function close(res){
+          document.removeEventListener('keydown', escHandler);
+          releaseModalScrollLock('admin-auth');
+          wrap.remove();
+          resolve(res);
+        }
         toggleBtn.addEventListener('click',()=>{
           if(inputEl.type==='password'){ inputEl.type='text'; toggleBtn.textContent='🙈'; }
           else { inputEl.type='password'; toggleBtn.textContent='👁️'; }
@@ -5329,7 +5395,7 @@
         cancelBtn.addEventListener('click',()=>close(false));
         wrap.querySelector('.admin-auth-backdrop').addEventListener('click',()=>close(false));
         inputEl.addEventListener('keydown',e=>{ if(e.key==='Enter') okBtn.click(); if(e.key==='Escape') close(false); });
-        document.addEventListener('keydown',function escHandler(e){ if(e.key==='Escape'){ document.removeEventListener('keydown',escHandler); if(document.body.contains(wrap)) close(false);} });
+        document.addEventListener('keydown', escHandler);
         setTimeout(()=>inputEl.focus(),50);
       });
     }
@@ -5798,6 +5864,7 @@
 
     function updateViews() {
       dbg('updateViews 被调用，当前 uiState.view:', uiState.view);
+      syncRootScrollLock();
       
       const home = document.getElementById('homeView');
       const list = document.getElementById('listView');
@@ -6471,6 +6538,13 @@
     function showStyledConfirm({title, studentName, score, reason, type = 'add'}) {
       return new Promise((resolve) => {
         const modal = document.createElement('div');
+        const releaseConfirmLock = () => releaseModalScrollLock('styled-confirm');
+        const closeConfirm = (result) => {
+          releaseConfirmLock();
+          modal.remove();
+          resolve(result);
+          document.removeEventListener('keydown', escHandler);
+        };
         const bgColor = type === 'add' ? '#059669' : type === 'deduct' ? '#dc2626' : '#6b7280';
         const icon = type === 'add' ? '➕' : type === 'deduct' ? '➖' : '🔄';
         const actionText = type === 'add' ? '加分' : type === 'deduct' ? '扣分' : '复原';
@@ -6517,23 +6591,20 @@
         `;
         
         document.body.appendChild(modal);
+        acquireModalScrollLock('styled-confirm');
         
         modal.querySelector('#confirmOk').onclick = () => {
-          modal.remove();
-          resolve(true);
+          closeConfirm(true);
         };
         
         modal.querySelector('#confirmCancel').onclick = () => {
-          modal.remove();
-          resolve(false);
+          closeConfirm(false);
         };
         
         // ESC 键取消
         const escHandler = (e) => {
           if (e.key === 'Escape') {
-            modal.remove();
-            resolve(false);
-            document.removeEventListener('keydown', escHandler);
+            closeConfirm(false);
           }
         };
         document.addEventListener('keydown', escHandler);
@@ -6719,6 +6790,7 @@
       
       document.head.appendChild(style);
       document.body.appendChild(dialog);
+      acquireModalScrollLock('admin-score-dialog');
       
       // 绑定UI元素
       const minusBtns = dialog.querySelectorAll('.minus-btn');
@@ -6835,6 +6907,7 @@
     function closeAdminDialog() {
       const dialog = document.querySelector('.admin-score-dialog');
       if (dialog) dialog.remove();
+      releaseModalScrollLock('admin-score-dialog');
     }
 
     async function saveAdminScoreAdjustment(studentName) {
@@ -8616,6 +8689,7 @@
       // 移除现有模态框
       const existing = document.querySelector('.score-detail-modal, .lb-modal');
       if (existing) {
+        releaseModalScrollLock('score-detail');
         existing.remove();
       }
       
@@ -8634,6 +8708,7 @@
       `;
       
       document.body.appendChild(modal);
+      acquireModalScrollLock('score-detail');
       
       // 显示动画
       requestAnimationFrame(() => {
@@ -8666,6 +8741,7 @@
           modal.remove();
         }, 200);
       }
+      releaseModalScrollLock('score-detail');
     }
 
     // ===== 排行规则详情（复刻旧系统样式与文案） =====
@@ -13582,6 +13658,7 @@
       
       document.getElementById('modalContent').innerHTML = modalContent;
       document.getElementById('modalOverlay').style.display = 'flex';
+      acquireModalScrollLock('student-modal');
     }
 
     function generateCurrentStatusHTML(student) {
@@ -13606,6 +13683,7 @@
 
     function closeModal() {
       document.getElementById('modalOverlay').style.display = 'none';
+      releaseModalScrollLock('student-modal');
     }
 
     // ==== 事件监听器 ====
@@ -16366,6 +16444,20 @@
       }, 5000);
     }
 
+    function openRankingInfoModal() {
+      const modal = document.getElementById('rankingInfoModal');
+      if (!modal) return;
+      modal.classList.add('active');
+      acquireModalScrollLock('ranking-info');
+    }
+
+    function closeRankingInfoModal() {
+      const modal = document.getElementById('rankingInfoModal');
+      if (!modal) return;
+      modal.classList.remove('active');
+      releaseModalScrollLock('ranking-info');
+    }
+
     // 音符币流水弹窗逻辑
     async function openCoinHistory() {
       const studentName = document.getElementById('studentName').textContent;
@@ -16375,6 +16467,7 @@
       const listEl = document.getElementById('coinHistoryList');
       listEl.innerHTML = '<div class="coin-hi-empty">加载中...</div>';
       document.getElementById('coinHistoryModal').classList.add('show');
+      acquireModalScrollLock('coin-history');
 
       try {
         const { data, error } = await supabaseClient
@@ -16424,6 +16517,7 @@
 
     function closeCoinHistory() {
       document.getElementById('coinHistoryModal').classList.remove('show');
+      releaseModalScrollLock('coin-history');
     }
 
     function riSwitchTab(idx, btn) {

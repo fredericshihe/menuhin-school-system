@@ -89,3 +89,42 @@
   - 关键视图从 `100vh` 升级为 `100dvh`（并保留兼容），修复 iOS 动态地址栏导致的高度误差。
   - 为 `body`、`#homeView`、`.list-view`、`.detail-view`、`.student-grid`、`.detail-content` 增加底部安全区内边距，防止内容落入 Home Indicator 区域。
   - 头部区域增加顶部安全区偏移，避免刘海屏贴边观感与误触。
+
+## 第四轮列表底部滚动假死修复（2026-03-22）
+
+针对“学生列表页滑到底后轻触再上滑，页面卡死且右侧滚动条突然变长”的问题，补充根因修复：
+
+- **滚动链泄漏修复（核心）**：
+  - 为 `.list-view`、`.detail-view` 增加 `overscroll-behavior-y: contain`，阻断滚动链传递到根页面。
+  - 增加 `touch-action: pan-y`，明确列表/详情主手势为纵向滚动。
+
+- **根页面滚动锁定（核心）**：
+  - 新增 `lockRootScroll()` / `unlockRootScroll()` / `syncRootScrollLock()`。
+  - 当进入列表/详情/排行等浮层式视图时，锁住 `html/body` 根滚动，并保存原始滚动位置。
+  - 返回首页时恢复根滚动，避免列表到底后继续把底层主页文档滚动起来。
+
+- **问题现象解释**：
+  - 之前列表页到底后继续上滑，滚动会传递到根页面，右侧显示的长滚动条其实是底层整页文档的滚动条，不是列表本身的滚动条。
+  - 这会造成视觉上“页面卡死、滚动条长度异常、列表像失去响应”，本轮修复就是专门切断这条错误滚动链。
+
+## 第五轮弹窗层级与下层滚动锁定（2026-03-22）
+
+针对“弹窗打开时仍能滚动下层页面”的问题，完成统一治理：
+
+- **统一锁滚机制（核心）**：
+  - 新增 `acquireModalScrollLock()` / `releaseModalScrollLock()`，与现有视图锁统一到 `syncRootScrollLock()`。
+  - 当前视图不在首页，或任意弹窗处于打开状态时，都会锁住 `html/body` 根滚动。
+  - 只有“无弹窗 + 首页视图”时才恢复根滚动。
+
+- **已接入锁滚的弹窗**：
+  - 排行榜规则弹窗（`rankingInfoModal`）
+  - 音符币流水弹窗（`coinHistoryModal`）
+  - 评分详情弹窗（`lb-modal`）
+  - 管理员密码弹窗（`admin-auth-dialog`）
+  - 管理员调分弹窗（`admin-score-dialog`）
+  - 管理员二次确认弹窗（`showStyledConfirm`）
+  - 旧学生信息弹窗（`modalOverlay`，兼容路径）
+
+- **附带修复**：
+  - 管理员验证弹窗的 ESC 监听改为可回收，避免关闭后键盘监听残留。
+  - 排行规则弹窗改为统一 `openRankingInfoModal()` / `closeRankingInfoModal()`，避免分散的内联开关造成状态不同步。
