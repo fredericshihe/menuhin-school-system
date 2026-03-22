@@ -104,6 +104,8 @@
       --radius-sm:8px;
       --card-pad:24px;
       --gap-md:16px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
     /*
      * ==============================
@@ -121,11 +123,16 @@
       box-sizing: border-box;
     }
 
+    html, body {
+      height: 100%;
+    }
+
     body {
       /* 系统 / 本地字体栈：避免外部字体请求失败 */
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, "Segoe UI", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", Roboto, sans-serif;
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -139,6 +146,7 @@
       -moz-osx-font-smoothing: grayscale;
       text-rendering: optimizeLegibility;
       overscroll-behavior-y: none; /* 防止下拉刷新导致页面整体拖动 */
+      padding-bottom: var(--safe-bottom);
     }
     
     html {
@@ -170,7 +178,8 @@
     /* 首页居中展示 */
     #homeView { 
       min-height: 100vh;
-      padding: 24px 16px;
+      min-height: 100dvh;
+      padding: calc(24px + var(--safe-top)) 16px calc(24px + var(--safe-bottom));
       /* overflow-y: auto; 移除以避免双重滚动条 */
     }
 
@@ -472,6 +481,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       z-index: 100;
       transform: scale(0);
@@ -485,6 +495,7 @@
       will-change: transform, opacity;
       contain: layout style paint;
       backface-visibility: hidden;
+      padding-bottom: var(--safe-bottom);
     }
     .list-view.expanding {
       transform: scale(1);
@@ -499,7 +510,7 @@
       align-items: center; 
       gap: 12px; 
       margin-bottom: 16px; 
-      padding: 24px 16px 0;
+      padding: calc(24px + var(--safe-top)) 16px 0;
       position: sticky;
       top: 0;
       /* 与主背景统一，无底边线 */
@@ -537,7 +548,7 @@
       width: 100%;
       max-width: 960px;
       margin: 0 auto;
-      padding: 0 16px 32px;
+      padding: 0 16px calc(32px + var(--safe-bottom));
     }
     .stu-card {
       border-radius: 12px;
@@ -617,6 +628,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
       background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
       z-index: 200;
       transform: translateX(100%);
@@ -626,6 +638,7 @@
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       will-change: transform;
+      padding-bottom: var(--safe-bottom);
     }
     
     .detail-view.active {
@@ -647,7 +660,7 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 24px 16px 16px;
+      padding: calc(24px + var(--safe-top)) 16px 16px;
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       position: sticky;
       top: 0;
@@ -661,7 +674,7 @@
       letter-spacing: -0.01em;
     }
 
-  .detail-content { padding: 12px 16px 32px; display: flex; flex-direction: column; gap: var(--gap-md); }
+  .detail-content { padding: 12px 16px calc(32px + var(--safe-bottom)); display: flex; flex-direction: column; gap: var(--gap-md); }
   @media (max-width: 560px){ .detail-content { padding-top: 16px; } }
 
     /* 个人信息卡片 */
@@ -6133,19 +6146,21 @@
       setupSearchFunction();
     }
 
-  // iOS 原生风格右滑返回手势
+  // iOS 原生风格右滑返回手势（重构：先判定横向意图，再进入拖拽，避免干扰纵向滚动）
   function setupSwipeGestures() {
-    const EDGE_ZONE = 30;       // 触发区域：距左边缘 30px 内开始才算
-    const THRESHOLD = 0.38;     // 松手时完成返回的最小进度（38% 屏幕宽度）
-    const VELOCITY_THRESHOLD = 0.4; // 快速滑动时即使距离不足也触发（px/ms）
+    const EDGE_ZONE = 18;
+    const ACTIVATE_THRESHOLD = 14;
+    const THRESHOLD = 0.38;
+    const VELOCITY_THRESHOLD = 0.4;
 
     let startX = 0, startY = 0, startTime = 0;
+    let tracking = false;
     let dragging = false;
-    let activeEl = null; // 被平移的视图元素
+    let activeEl = null;
+    let activeTarget = null;
     let swipeRaf = null;
     let pendingDx = 0;
 
-    // 获取当前可见的视图元素及其对应的"返回"操作
     function getSwipeTarget() {
       if (uiState.view === 'detail') {
         return {
@@ -6171,87 +6186,119 @@
       return null;
     }
 
+    function resetElementStyles(el) {
+      if (!el) return;
+      el.style.transition = '';
+      el.style.transform = '';
+      el.style.willChange = '';
+      el.style.boxShadow = '';
+    }
+
+    function cancelGesture() {
+      tracking = false;
+      dragging = false;
+      if (swipeRaf) {
+        cancelAnimationFrame(swipeRaf);
+        swipeRaf = null;
+      }
+      resetElementStyles(activeEl);
+      activeEl = null;
+      activeTarget = null;
+    }
+
     document.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
       const touch = e.touches[0];
-      if (touch.clientX > EDGE_ZONE) return; // 只响应左边缘
+      if (touch.clientX > EDGE_ZONE) return;
+      const tagName = e.target?.tagName || '';
+      if (tagName === 'INPUT' || tagName === 'TEXTAREA' || e.target?.isContentEditable) return;
       const target = getSwipeTarget();
-      if (!target) return;
+      if (!target || !target.el) return;
+      tracking = true;
+      dragging = false;
+      activeTarget = target;
+      activeEl = target.el;
       startX = touch.clientX;
       startY = touch.clientY;
       startTime = Date.now();
-      dragging = true;
-      activeEl = target.el;
-      // 禁止过渡动画，改为跟手移动
-      activeEl.style.transition = 'none';
-      activeEl.style.willChange = 'transform';
+      pendingDx = 0;
     }, { passive: true });
 
     document.addEventListener('touchmove', (e) => {
-      if (!dragging || !activeEl) return;
+      if (!tracking || !activeEl) return;
       const touch = e.touches[0];
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
-      // 垂直滑动优先：若纵向幅度明显大于横向，取消手势
-      if (Math.abs(dy) > Math.abs(dx) * 1.5 && dx < 20) {
-        dragging = false;
-        activeEl.style.transition = '';
-        activeEl.style.transform = '';
-        activeEl = null;
-        return;
+
+      if (!dragging) {
+        // 纵向意图优先，立即退出手势，交给原生滚动
+        if (Math.abs(dy) > ACTIVATE_THRESHOLD && Math.abs(dy) > Math.abs(dx) * 1.2) {
+          cancelGesture();
+          return;
+        }
+        // 仅当横向意图明确时才接管
+        if (dx > ACTIVATE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.2) {
+          dragging = true;
+          activeEl.style.transition = 'none';
+          activeEl.style.willChange = 'transform';
+        } else {
+          return;
+        }
       }
+
       if (dx <= 0) return;
+      e.preventDefault();
       pendingDx = dx;
       if (!swipeRaf) {
         swipeRaf = requestAnimationFrame(() => {
           swipeRaf = null;
           if (!activeEl) return;
           const progress = Math.min(pendingDx / window.innerWidth, 1);
-          // 跟手平移 + 轻微缩放（模拟 iOS 层次感）
           activeEl.style.transform = `translateX(${pendingDx}px)`;
           activeEl.style.boxShadow = `${-4 * (1 - progress) * 20}px 0 40px rgba(0,0,0,${0.15 * (1 - progress)})`;
         });
       }
-    }, { passive: true });
+    }, { passive: false });
 
     function finishGesture(e) {
-      if (!dragging || !activeEl) return;
-      dragging = false;
+      if (!tracking) return;
+      tracking = false;
+      if (!dragging || !activeEl || !activeTarget) {
+        cancelGesture();
+        return;
+      }
       if (swipeRaf) {
         cancelAnimationFrame(swipeRaf);
         swipeRaf = null;
       }
-      const touch = (e.changedTouches || e.touches)[0];
-      const dx = touch ? touch.clientX - startX : 0;
+
+      const touch = (e.changedTouches || e.touches)?.[0];
+      const dx = touch ? touch.clientX - startX : pendingDx;
       const elapsed = Date.now() - startTime;
       const velocity = elapsed > 0 ? dx / elapsed : 0;
       const progress = dx / window.innerWidth;
       const shouldGoBack = progress >= THRESHOLD || velocity >= VELOCITY_THRESHOLD;
 
-      const target = getSwipeTarget();
-      if (shouldGoBack && target) {
-        // 完成动画后执行返回
-        activeEl.style.transition = 'transform 0.28s cubic-bezier(0.32,0.72,0,1)';
-        activeEl.style.transform = `translateX(${window.innerWidth}px)`;
+      if (shouldGoBack) {
         const el = activeEl;
+        const target = activeTarget;
+        el.style.transition = 'transform 0.28s cubic-bezier(0.32,0.72,0,1)';
+        el.style.transform = `translateX(${window.innerWidth}px)`;
         activeEl = null;
+        activeTarget = null;
+        dragging = false;
         setTimeout(() => {
-          el.style.transition = '';
-          el.style.transform = '';
-          el.style.willChange = '';
-          el.style.boxShadow = '';
+          resetElementStyles(el);
           target.back();
         }, 280);
       } else {
-        // 弹回原位
-        activeEl.style.transition = 'transform 0.3s cubic-bezier(0.32,0.72,0,1)';
-        activeEl.style.transform = 'translateX(0)';
         const el = activeEl;
         activeEl = null;
-        setTimeout(() => {
-          el.style.transition = '';
-          el.style.willChange = '';
-          el.style.boxShadow = '';
-        }, 300);
+        activeTarget = null;
+        dragging = false;
+        el.style.transition = 'transform 0.3s cubic-bezier(0.32,0.72,0,1)';
+        el.style.transform = 'translateX(0)';
+        setTimeout(() => resetElementStyles(el), 300);
       }
     }
 
