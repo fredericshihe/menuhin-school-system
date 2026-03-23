@@ -126,11 +126,28 @@
   - 排行榜规则弹窗（`rankingInfoModal`）
   - 音符币流水弹窗（`coinHistoryModal`）
   - 评分详情弹窗（`lb-modal`）
-  - 管理员密码弹窗（`admin-auth-dialog`）
-  - 管理员调分弹窗（`admin-score-dialog`）
-  - 管理员二次确认弹窗（`showStyledConfirm`）
-  - 旧学生信息弹窗（`modalOverlay`，兼容路径）
+        - 旧学生信息弹窗（`modalOverlay`，兼容路径）
 
 - **附带修复**：
   - 管理员验证弹窗的 ESC 监听改为可回收，避免关闭后键盘监听残留。
   - 排行规则弹窗改为统一 `openRankingInfoModal()` / `closeRankingInfoModal()`，避免分散的内联开关造成状态不同步。
+
+## 第六轮实现核对与补齐（2026-03-23）
+
+针对“README 已记录但 `index.html` 中未实际落地”的问题，已完成逐项核对并补齐以下实现：
+
+- 已补齐 `--safe-top` / `--safe-bottom` 安全区变量。
+- 已将关键浮层视图升级为 `100dvh`，并保留 `100vh` 兼容。
+- 已为 `.list-view` / `.detail-view` 增加 `overscroll-behavior-y: contain` 与 `touch-action: pan-y`。
+- 已真实实现 `lockRootScroll()` / `unlockRootScroll()` / `syncRootScrollLock()`。
+- 已真实实现 `acquireModalScrollLock()` / `releaseModalScrollLock()`，并接入排行榜说明、音符币流水、评分详情、旧学生信息弹窗。
+- 已将左缘返回手势改为“先确认横向意图再接管”，避免与纵向滚动竞争。
+- 已将排行规则弹窗统一为 `openRankingInfoModal()` / `closeRankingInfoModal()`。
+
+本轮核对后，上述 README 中明确点名的移动端滚动/锁滚修复项，代码内均已有对应实现。
+
+## 第七轮管理员调分下线（2026-03-23）
+
+- 已从 `index.html` 彻底移除管理员调分入口、快捷键、弹窗、云端同步与分数注入逻辑。
+- 首页榜、完整榜、评分详情、历史重算与缓存签名不再读取任何管理员调分数据。
+- 初始化时会清理旧的 `adminScoreAdjustments` 本地缓存，避免历史残留继续影响页面口径。

@@ -104,6 +104,8 @@
       --radius-sm:8px;
       --card-pad:24px;
       --gap-md:16px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
     /*
      * ==============================
@@ -121,11 +123,18 @@
       box-sizing: border-box;
     }
 
+    html {
+      scroll-behavior: smooth;
+      min-height: 100%;
+      height: 100%;
+    }
+
     body {
       /* 系统 / 本地字体栈：避免外部字体请求失败 */
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, "Segoe UI", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", Roboto, sans-serif;
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -139,10 +148,7 @@
       -moz-osx-font-smoothing: grayscale;
       text-rendering: optimizeLegibility;
       overscroll-behavior-y: none; /* 防止下拉刷新导致页面整体拖动 */
-    }
-    
-    html {
-      scroll-behavior: smooth;
+      padding-bottom: var(--safe-bottom);
     }
 
     /* 优化点击触感 */
@@ -157,8 +163,7 @@
       transform: translateZ(0);
       will-change: transform, opacity;
     }
-    /* 修正：删除 iOS 边缘滑动相关代码（CSS 部分已去除） */
-    /* 原功能说明：屏幕左缘右滑返回上一视图；已按用户要求完全移除。 */
+    /* 视图切换仍保留左缘返回手势，具体逻辑见 setupSwipeGestures() */
 
     /* 布局容器 */
     .container {
@@ -170,7 +175,8 @@
     /* 首页居中展示 */
     #homeView { 
       min-height: 100vh;
-      padding: 24px 16px;
+      min-height: 100dvh;
+      padding: calc(24px + var(--safe-top)) 16px calc(24px + var(--safe-bottom));
       /* overflow-y: auto; 移除以避免双重滚动条 */
     }
 
@@ -472,6 +478,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       z-index: 100;
       transform: scale(0);
@@ -482,7 +489,10 @@
       flex-direction: column;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-  will-change: transform, opacity;
+      will-change: transform, opacity;
+      overscroll-behavior-y: contain;
+      touch-action: pan-y;
+      padding-bottom: var(--safe-bottom);
     }
     .list-view.expanding {
       transform: scale(1);
@@ -497,7 +507,7 @@
       align-items: center; 
       gap: 12px; 
       margin-bottom: 16px; 
-      padding: 24px 16px 0;
+      padding: calc(24px + var(--safe-top)) 16px 0;
       position: sticky;
       top: 0;
       /* 与主背景统一，无底边线 */
@@ -535,7 +545,7 @@
       width: 100%;
       max-width: 960px;
       margin: 0 auto;
-      padding: 0 16px 32px;
+      padding: 0 16px calc(32px + var(--safe-bottom));
     }
     .stu-card {
       border-radius: 12px;
@@ -615,6 +625,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
       background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
       z-index: 200;
       transform: translateX(100%);
@@ -623,6 +634,9 @@
       flex-direction: column;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+      touch-action: pan-y;
+      padding-bottom: var(--safe-bottom);
     }
     
     .detail-view.active {
@@ -644,7 +658,7 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 24px 16px 16px;
+      padding: calc(24px + var(--safe-top)) 16px 16px;
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       position: sticky;
       top: 0;
@@ -658,7 +672,7 @@
       letter-spacing: -0.01em;
     }
 
-  .detail-content { padding: 12px 16px 32px; display: flex; flex-direction: column; gap: var(--gap-md); }
+  .detail-content { padding: 12px 16px calc(32px + var(--safe-bottom)); display: flex; flex-direction: column; gap: var(--gap-md); }
   @media (max-width: 560px){ .detail-content { padding-top: 16px; } }
 
     /* 个人信息卡片 */
@@ -1873,7 +1887,7 @@
         color: var(--brand-500) !important;
       }
       
-      /* 满勤加成和管理员调整在深色模式下的颜色 */
+      /* 满勤加成在深色模式下的颜色 */
       .bonus-line {
         color: #10b981 !important;
         border-left-color: #10b981 !important;
@@ -2701,7 +2715,7 @@
           <span class="wlb-title">🏅 本周排行榜</span>
           <div style="display:flex;align-items:center;gap:8px;">
             <span class="wlb-updated" id="wlbUpdated"></span>
-            <button class="ranking-info-btn" onclick="document.getElementById('rankingInfoModal').classList.add('active')" title="榜单规则说明">?</button>
+            <button class="ranking-info-btn" onclick="openRankingInfoModal()" title="榜单规则说明">?</button>
           </div>
         </div>
         <!-- Tab 切换 -->
@@ -2719,11 +2733,11 @@
       </div>
 
       <!-- 排行榜规则说明弹窗 -->
-      <div class="ranking-info-modal" id="rankingInfoModal" onclick="if(event.target===this)this.classList.remove('active')">
+      <div class="ranking-info-modal" id="rankingInfoModal" onclick="if(event.target===this)closeRankingInfoModal()">
         <div class="ranking-info-dialog">
           <div class="ri-header">
             <span class="ri-title">🏅 排行榜说明</span>
-            <button class="ri-close" onclick="document.getElementById('rankingInfoModal').classList.remove('active')">✕</button>
+            <button class="ri-close" onclick="closeRankingInfoModal()">✕</button>
           </div>
 
           <!-- Tab 切换栏 -->
@@ -5248,6 +5262,84 @@
   rankingOrigin: null // 记录进入“完整排行榜”的来源（home 或 list）
     };
 
+    let __rootScrollLocked = false;
+    let __rootScrollY = 0;
+    let __modalScrollLockCount = 0;
+
+    function lockRootScroll() {
+      if (__rootScrollLocked) return;
+      __rootScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${__rootScrollY}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
+      __rootScrollLocked = true;
+    }
+
+    function unlockRootScroll() {
+      if (!__rootScrollLocked) return;
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      window.scrollTo(0, __rootScrollY);
+      __rootScrollLocked = false;
+    }
+
+    function hasOpenModalLikeUI() {
+      const rankingInfoModal = document.getElementById('rankingInfoModal');
+      const coinHistoryModal = document.getElementById('coinHistoryModal');
+      const legacyModal = document.getElementById('modalOverlay');
+      return !!(
+        document.querySelector('.lb-modal') ||
+        (rankingInfoModal && rankingInfoModal.classList.contains('active')) ||
+        (coinHistoryModal && coinHistoryModal.classList.contains('show')) ||
+        (legacyModal && getComputedStyle(legacyModal).display !== 'none')
+      );
+    }
+
+    function syncRootScrollLock() {
+      const shouldLock = uiState.view !== 'home' || __modalScrollLockCount > 0 || hasOpenModalLikeUI();
+      if (shouldLock) lockRootScroll();
+      else unlockRootScroll();
+    }
+
+    function acquireModalScrollLock() {
+      __modalScrollLockCount += 1;
+      syncRootScrollLock();
+    }
+
+    function releaseModalScrollLock() {
+      __modalScrollLockCount = Math.max(0, __modalScrollLockCount - 1);
+      syncRootScrollLock();
+    }
+
+    function openRankingInfoModal() {
+      const modal = document.getElementById('rankingInfoModal');
+      if (!modal || modal.classList.contains('active')) return;
+      modal.classList.add('active');
+      acquireModalScrollLock();
+    }
+
+    function closeRankingInfoModal() {
+      const modal = document.getElementById('rankingInfoModal');
+      if (!modal || !modal.classList.contains('active')) return;
+      modal.classList.remove('active');
+      releaseModalScrollLock();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      closeRankingInfoModal();
+      closeCoinHistory();
+    });
+
     // 排行榜显示模式
     let rankingMode = 'daily'; // 'daily' 或 'weekly'
     // 排行榜模式 HTML 内存缓存，避免日/周切换闪烁
@@ -5256,88 +5348,11 @@
     }
     const RANKING_FADE_CLASS = 'ranking-fade-in';
 
-    // 管理员模式相关
-    let adminMode = false;
-  const ADMIN_PASSWORD = 'gaifen2022';
-    // 不再依赖 localStorage 持久化调分（之前已移除），仅内存缓存
-    const adminScoreAdjustments = {};
   // 排行榜缓存 key（供首页小榜与完整榜共享 & 清理）
   const RANK_CACHE_KEY = 'rank_cache_v2';
   // 统一规则版本（避免硬编码分散 & 确保 NOT NULL 约束）
   const RULE_VERSION = 'LB442-2025-09-24';
-    // 自定义异步密码弹窗，每次都要求输入密码
-    function ensureAdminAuthenticated(){
-      return new Promise(resolve => {
-        if(document.querySelector('.admin-auth-dialog')) return; // 已存在则不重复
-        const wrap = document.createElement('div');
-        wrap.className = 'admin-auth-dialog';
-        wrap.innerHTML = `
-          <div class="admin-auth-backdrop"></div>
-          <div class="admin-auth-content">
-            <h3 style="margin:0 0 16px;font-size:18px;color:#111827;font-weight:600;">管理员验证</h3>
-            <label style="display:block;font-size:14px;color:#374151;margin-bottom:6px;">请输入管理员密码</label>
-            <div style="position:relative;">
-              <input id="adminAuthPassword" type="password" autocomplete="off" placeholder="密码" style="width:100%;padding:10px 40px 10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;outline:none;">
-              <button type="button" id="adminAuthToggle" aria-label="显示/隐藏密码" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:transparent;cursor:pointer;font-size:16px;">👁️</button>
-            </div>
-            <div id="adminAuthError" style="color:#ef4444;font-size:12px;min-height:16px;margin-top:6px;"></div>
-            <div style="display:flex;justify-content:flex-end;margin-top:20px;gap:8px;">
-              <button type="button" id="adminAuthCancel" style="padding:8px 16px;border:1px solid #d1d5db;background:white;border-radius:6px;cursor:pointer;font-size:14px;">取消</button>
-              <button type="button" id="adminAuthOk" style="padding:8px 16px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;">确认</button>
-            </div>
-          </div>`;
-        const style = document.createElement('style');
-        style.textContent = `
-          .admin-auth-dialog{position:fixed;inset:0;z-index:11000;display:flex;align-items:center;justify-content:center;font-family:inherit;}
-          .admin-auth-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);}
-          .admin-auth-content{position:relative;background:#fff;border-radius:10px;padding:24px 24px 20px;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04);width:90%;max-width:360px;animation:adminAuthPop .18s ease;}
-          @keyframes adminAuthPop{0%{transform:scale(.92);opacity:0;}100%{transform:scale(1);opacity:1;}}
-          .admin-auth-shake{animation:adminAuthShake .4s;}@keyframes adminAuthShake{10%,90%{transform:translateX(-1px);}20%,80%{transform:translateX(2px);}30%,50%,70%{transform:translateX(-4px);}40%,60%{transform:translateX(4px);}}
-        `;
-        document.head.appendChild(style);
-        document.body.appendChild(wrap);
-        const inputEl = wrap.querySelector('#adminAuthPassword');
-        const errEl = wrap.querySelector('#adminAuthError');
-        const okBtn = wrap.querySelector('#adminAuthOk');
-        const cancelBtn = wrap.querySelector('#adminAuthCancel');
-        const toggleBtn = wrap.querySelector('#adminAuthToggle');
-        function close(res){ wrap.remove(); resolve(res); }
-        toggleBtn.addEventListener('click',()=>{
-          if(inputEl.type==='password'){ inputEl.type='text'; toggleBtn.textContent='🙈'; }
-          else { inputEl.type='password'; toggleBtn.textContent='👁️'; }
-          inputEl.focus();
-        });
-        okBtn.addEventListener('click',()=>{
-          const v = inputEl.value.trim();
-          if(v===ADMIN_PASSWORD){ close(true); }
-          else { errEl.textContent='密码错误'; wrap.querySelector('.admin-auth-content').classList.remove('admin-auth-shake'); void wrap.querySelector('.admin-auth-content').offsetWidth; wrap.querySelector('.admin-auth-content').classList.add('admin-auth-shake'); inputEl.focus(); inputEl.select(); }
-        });
-        cancelBtn.addEventListener('click',()=>close(false));
-        wrap.querySelector('.admin-auth-backdrop').addEventListener('click',()=>close(false));
-        inputEl.addEventListener('keydown',e=>{ if(e.key==='Enter') okBtn.click(); if(e.key==='Escape') close(false); });
-        document.addEventListener('keydown',function escHandler(e){ if(e.key==='Escape'){ document.removeEventListener('keydown',escHandler); if(document.body.contains(wrap)) close(false);} });
-        setTimeout(()=>inputEl.focus(),50);
-      });
-    }
-    
-    // 监听快捷键进入管理员模式 (Mac: Cmd+Shift+Option+A, Windows: Ctrl+Shift+Alt+A)
-    document.addEventListener('keydown', async function(e) {
-      const isMac = navigator.platform.toUpperCase().includes('MAC');
-      const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
-      const altOrOption = e.altKey;
-      
-      // 使用 keyCode 或 code 来确保跨平台兼容性
-      const isAKey = e.key === 'A' || e.key === 'a' || e.code === 'KeyA' || e.keyCode === 65;
-      
-      if (ctrlOrCmd && e.shiftKey && altOrOption && isAKey) {
-        e.preventDefault();
-        if(!adminMode){
-          const ok = await ensureAdminAuthenticated();
-          if(!ok) return; // 未通过验证不进入
-        }
-        toggleAdminMode();
-      }
-    });
+  try { localStorage.removeItem('adminScoreAdjustments'); } catch(_) {}
 
     function mapStudentToCardData(s) {
       const meta = appState.studentsMeta.get(s.name) || {};
@@ -5915,22 +5930,14 @@
             // 强制更新所有排行榜，确保数据一致性
             window.__leaderboardSyncSystem.updateAllLeaderboards({ force: true, silent: false })
               .then(() => {
-                // 如果管理员模式已开启，添加控制按钮
-                if (adminMode) {
-                  setTimeout(() => addAdminControls(), 100);
-                }
               });
           } else {
             // 降级：使用旧的更新方式
-            renderRankingFull({ silent:false, keepScroll:false }).then(() => {
-              // 如果管理员模式已开启，添加控制按钮
-              if (adminMode) {
-                setTimeout(() => addAdminControls(), 100);
-              }
-            });
+            renderRankingFull({ silent:false, keepScroll:false });
           }
         } else { dbg('ranking 容器未找到'); }
       }
+      syncRootScrollLock();
     }
 
     function setupHomeInteractions() {
@@ -6122,10 +6129,13 @@
     const EDGE_ZONE = 30;       // 触发区域：距左边缘 30px 内开始才算
     const THRESHOLD = 0.38;     // 松手时完成返回的最小进度（38% 屏幕宽度）
     const VELOCITY_THRESHOLD = 0.4; // 快速滑动时即使距离不足也触发（px/ms）
+    const INTENT_THRESHOLD = 14; // 必须先确认横向意图，避免和纵向滚动冲突
 
     let startX = 0, startY = 0, startTime = 0;
+    let candidate = null;
     let dragging = false;
     let activeEl = null; // 被平移的视图元素
+    let activeBack = null;
 
     // 获取当前可见的视图元素及其对应的"返回"操作
     function getSwipeTarget() {
@@ -6153,6 +6163,19 @@
       return null;
     }
 
+    function cleanupGesture(resetTransform = true) {
+      if (activeEl) {
+        activeEl.style.transition = '';
+        activeEl.style.willChange = '';
+        activeEl.style.boxShadow = '';
+        if (resetTransform) activeEl.style.transform = '';
+      }
+      candidate = null;
+      dragging = false;
+      activeEl = null;
+      activeBack = null;
+    }
+
     document.addEventListener('touchstart', (e) => {
       const touch = e.touches[0];
       if (touch.clientX > EDGE_ZONE) return; // 只响应左边缘
@@ -6161,63 +6184,82 @@
       startX = touch.clientX;
       startY = touch.clientY;
       startTime = Date.now();
-      dragging = true;
-      activeEl = target.el;
-      // 禁止过渡动画，改为跟手移动
-      activeEl.style.transition = 'none';
-      activeEl.style.willChange = 'transform';
+      candidate = target;
+      dragging = false;
+      activeEl = null;
+      activeBack = null;
     }, { passive: true });
 
     document.addEventListener('touchmove', (e) => {
-      if (!dragging || !activeEl) return;
+      if (!candidate && !dragging) return;
       const touch = e.touches[0];
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
-      // 垂直滑动优先：若纵向幅度明显大于横向，取消手势
-      if (Math.abs(dy) > Math.abs(dx) * 1.5 && dx < 20) {
-        dragging = false;
-        activeEl.style.transition = '';
-        activeEl.style.transform = '';
-        activeEl = null;
+
+      if (!dragging) {
+        // 纵向滚动意图更明确时，立即放行给原生滚动
+        if (Math.abs(dy) > INTENT_THRESHOLD && Math.abs(dy) > Math.abs(dx) * 1.2) {
+          candidate = null;
+          return;
+        }
+        if (dx <= 0 || dx < INTENT_THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.2) {
+          return;
+        }
+        dragging = true;
+        activeEl = candidate?.el || null;
+        activeBack = candidate?.back || null;
+        candidate = null;
+        if (!activeEl) {
+          cleanupGesture();
+          return;
+        }
+        activeEl.style.transition = 'none';
+        activeEl.style.willChange = 'transform';
+      }
+
+      if (!activeEl) {
+        cleanupGesture();
         return;
       }
-      if (dx <= 0) return;
+      e.preventDefault();
       const progress = Math.min(dx / window.innerWidth, 1);
       // 跟手平移 + 轻微缩放（模拟 iOS 层次感）
       activeEl.style.transform = `translateX(${dx}px)`;
       activeEl.style.boxShadow = `${-4 * (1 - progress) * 20}px 0 40px rgba(0,0,0,${0.15 * (1 - progress)})`;
-    }, { passive: true });
+    }, { passive: false });
 
     function finishGesture(e) {
-      if (!dragging || !activeEl) return;
-      dragging = false;
+      if (!dragging || !activeEl) {
+        candidate = null;
+        dragging = false;
+        return;
+      }
       const touch = (e.changedTouches || e.touches)[0];
       const dx = touch ? touch.clientX - startX : 0;
       const elapsed = Date.now() - startTime;
       const velocity = elapsed > 0 ? dx / elapsed : 0;
       const progress = dx / window.innerWidth;
       const shouldGoBack = progress >= THRESHOLD || velocity >= VELOCITY_THRESHOLD;
-
-      const target = getSwipeTarget();
-      if (shouldGoBack && target) {
+      const back = activeBack;
+      if (shouldGoBack && back) {
         // 完成动画后执行返回
         activeEl.style.transition = 'transform 0.28s cubic-bezier(0.32,0.72,0,1)';
         activeEl.style.transform = `translateX(${window.innerWidth}px)`;
         const el = activeEl;
-        activeEl = null;
+        cleanupGesture(false);
         setTimeout(() => {
           el.style.transition = '';
           el.style.transform = '';
           el.style.willChange = '';
           el.style.boxShadow = '';
-          target.back();
+          back();
         }, 280);
       } else {
         // 弹回原位
         activeEl.style.transition = 'transform 0.3s cubic-bezier(0.32,0.72,0,1)';
         activeEl.style.transform = 'translateX(0)';
         const el = activeEl;
-        activeEl = null;
+        cleanupGesture(false);
         setTimeout(() => {
           el.style.transition = '';
           el.style.willChange = '';
@@ -6360,1020 +6402,7 @@
         });
       });
     }
-
-    // 管理员模式功能
-  async function toggleAdminMode() {
-      adminMode = !adminMode;
-      if (adminMode) {
-        showAdminNotification('管理员模式启用中...', 'info');
-        
-        // 从云端同步最新的调分数据
-        const syncSuccess = await loadAdminScoresFromCloud();
-        
-        if (syncSuccess) {
-          showAdminNotification('管理员模式已启用，数据已同步', 'success');
-        } else {
-          showAdminNotification('管理员模式已启用（使用本地数据）', 'info');
-        }
-        
-        addAdminControls();
-        
-        // 如果在学生详情页面，刷新显示调分按钮
-        if (uiState.view === 'detail' && uiState.selectedStudent) {
-          renderStudentDetail(uiState.selectedStudent);
-        }
-      } else {
-        showAdminNotification('管理员模式已关闭', 'info');
-        removeAdminControls();
-        
-        // 如果在学生详情页面，移除调分按钮
-        if (uiState.view === 'detail' && uiState.selectedStudent) {
-          renderStudentDetail(uiState.selectedStudent);
-        }
-      }
-    }
-
-    // 优雅的确认对话框
-    function showStyledConfirm({title, studentName, score, reason, type = 'add'}) {
-      return new Promise((resolve) => {
-        const modal = document.createElement('div');
-        const bgColor = type === 'add' ? '#059669' : type === 'deduct' ? '#dc2626' : '#6b7280';
-        const icon = type === 'add' ? '➕' : type === 'deduct' ? '➖' : '🔄';
-        const actionText = type === 'add' ? '加分' : type === 'deduct' ? '扣分' : '复原';
-        
-        modal.innerHTML = `
-          <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);z-index:20000;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s;">
-            <div style="background:white;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);max-width:400px;width:90%;overflow:hidden;animation:scaleIn 0.3s;">
-              <div style="background:${bgColor};color:white;padding:24px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:8px;">${icon}</div>
-                <h3 style="margin:0;font-size:20px;font-weight:700;text-shadow:0 2px 4px rgba(0,0,0,0.1);">${title}</h3>
-              </div>
-              <div style="padding:24px;">
-                <div style="background:#f3f4f6;border-radius:8px;padding:16px;margin-bottom:16px;border:1px solid #e5e7eb;">
-                  <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
-                    <span style="color:#374151;font-size:14px;font-weight:600;">学生姓名</span>
-                    <span style="font-weight:700;font-size:16px;color:#111827;">${studentName}</span>
-                  </div>
-                  <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
-                    <span style="color:#374151;font-size:14px;font-weight:600;">调整分数</span>
-                    <span style="font-weight:700;font-size:22px;color:${bgColor};">${score} 分</span>
-                  </div>
-                  <div style="border-top:2px solid #d1d5db;padding-top:12px;margin-top:12px;">
-                    <div style="color:#374151;font-size:13px;margin-bottom:6px;font-weight:600;">原因说明</div>
-                    <div style="color:#111827;font-size:14px;line-height:1.6;font-weight:500;">${reason}</div>
-                  </div>
-                </div>
-                <div style="display:flex;gap:12px;">
-                  <button id="confirmCancel" style="flex:1;padding:12px;border:2px solid #d1d5db;background:white;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;color:#374151;transition:all 0.2s;">
-                    取消
-                  </button>
-                  <button id="confirmOk" style="flex:1;padding:12px;border:none;background:${bgColor};color:white;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;box-shadow:0 4px 6px -1px rgba(0,0,0,0.2);transition:all 0.2s;">
-                    确认${actionText}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <style>
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-            #confirmOk:hover { transform: translateY(-2px); box-shadow: 0 8px 12px -2px rgba(0,0,0,0.2); }
-            #confirmCancel:hover { background: #f3f4f6; border-color: #d1d5db; }
-          </style>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        modal.querySelector('#confirmOk').onclick = () => {
-          modal.remove();
-          resolve(true);
-        };
-        
-        modal.querySelector('#confirmCancel').onclick = () => {
-          modal.remove();
-          resolve(false);
-        };
-        
-        // ESC 键取消
-        const escHandler = (e) => {
-          if (e.key === 'Escape') {
-            modal.remove();
-            resolve(false);
-            document.removeEventListener('keydown', escHandler);
-          }
-        };
-        document.addEventListener('keydown', escHandler);
-      });
-    }
-
-    function showAdminNotification(message, type = 'info') {
-      const notification = document.createElement('div');
-      notification.className = `admin-notification admin-notification--${type}`;
-      notification.textContent = message;
-      notification.style.cssText = `
-        position: fixed; top: 20px; right: 20px; z-index: 9999;
-        padding: 12px 20px; border-radius: 8px; color: white; font-weight: 500;
-        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#6366f1'};
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; transform: translateX(100%);
-        transition: all 0.3s ease;
-      `;
-      document.body.appendChild(notification);
-      
-      // 动画显示
-      requestAnimationFrame(() => {
-        notification.style.opacity = '1';
-        notification.style.transform = 'translateX(0)';
-      });
-      
-      // 3秒后自动消失
-      setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateX(100%)';
-        setTimeout(() => notification.remove(), 300);
-      }, 3000);
-    }
-
-    function addAdminControls() {
-      // 管理员控制现在只在学生详情页面显示，此函数保留用于其他可能的管理员功能
-      dbg('管理员控制已启用');
-    }
-
-    function removeAdminControls() {
-      // 移除所有管理员相关按钮
-      document.querySelectorAll('.admin-score-btn, .admin-detail-btn').forEach(btn => btn.remove());
-    }
-
-
-
-    // 全局变量用于管理当前选择的调分
-    window.currentSelectedDelta = 0;
-
-    function openAdminScoreDialog(studentName) {
-      const currentAdjustment = adminScoreAdjustments[studentName] || { score: 0, reason: '' };
-      window.currentSelectedDelta = currentAdjustment.score || 0; // 初始化为当前调分
-      
-      const dialog = document.createElement('div');
-      dialog.className = 'admin-score-dialog';
-      dialog.innerHTML = `
-        <div class="admin-dialog-backdrop" onclick="closeAdminDialog()"></div>
-        <div class="admin-dialog-content">
-          <div class="admin-dialog-header">
-            <h3>管理员调分 - ${studentName}</h3>
-            <button onclick="closeAdminDialog()" style="border:none;background:none;font-size:20px;cursor:pointer;">×</button>
-          </div>
-          <div class="admin-dialog-body">
-            <!-- 当前状态卡片 -->
-            <div style="margin-bottom:20px;padding:12px;background:linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);border-radius:8px;border-left:4px solid #f59e0b;">
-              <div style="font-size:12px;color:#92400e;font-weight:600;margin-bottom:4px;">📊 当前调分状态</div>
-              <div id="currentAdjustStatus" style="font-size:16px;font-weight:700;color:#1f2937;">加载中...</div>
-            </div>
-            
-            <div class="admin-form-group">
-              <!-- 加分区域：自定义输入 -->
-              <div style="margin-bottom:12px;">
-                <label style="color:#059669;font-weight:600;">加分（自定义，支持小数点后两位）：</label>
-                <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-                  <span style="font-size:18px;color:#059669;">+</span>
-                  <input type="number" id="addScoreInput" min="0" max="99.99" step="0.01" 
-                         placeholder="0.00" style="width:80px;padding:6px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
-                  <button type="button" id="addScoreBtn" style="padding:6px 12px;background:#10b981;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">设为加分</button>
-                </div>
-              </div>
-              
-              <!-- 减分区域：固定选项 -->
-              <div style="margin-bottom:12px;">
-                <label style="color:#dc2626;font-weight:600;">扣分（快捷选择）：</label>
-                <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px;">
-                  <button type="button" data-delta="-1" class="delta-btn minus-btn" style="padding:8px 0;border:1px solid #fca5a5;border-radius:4px;background:#fef2f2;cursor:pointer;font-size:14px;color:#dc2626;font-weight:500;">-1</button>
-                  <button type="button" data-delta="-2" class="delta-btn minus-btn" style="padding:8px 0;border:1px solid #fca5a5;border-radius:4px;background:#fef2f2;cursor:pointer;font-size:14px;color:#dc2626;font-weight:500;">-2</button>
-                  <button type="button" data-delta="-3" class="delta-btn minus-btn" style="padding:8px 0;border:1px solid #fca5a5;border-radius:4px;background:#fef2f2;cursor:pointer;font-size:14px;color:#dc2626;font-weight:500;">-3</button>
-                  <button type="button" data-delta="-4" class="delta-btn minus-btn" style="padding:8px 0;border:1px solid #fca5a5;border-radius:4px;background:#fef2f2;cursor:pointer;font-size:14px;color:#dc2626;font-weight:500;">-4</button>
-                  <button type="button" data-delta="-5" class="delta-btn minus-btn" style="padding:8px 0;border:1px solid #fca5a5;border-radius:4px;background:#fef2f2;cursor:pointer;font-size:14px;color:#dc2626;font-weight:500;">-5</button>
-                  <button type="button" data-delta="-6" class="delta-btn minus-btn" style="padding:8px 0;border:1px solid #fca5a5;border-radius:4px;background:#fef2f2;cursor:pointer;font-size:14px;color:#dc2626;font-weight:500;">-6</button>
-                  <button type="button" data-delta="-7" class="delta-btn minus-btn" style="padding:8px 0;border:1px solid #fca5a5;border-radius:4px;background:#fef2f2;cursor:pointer;font-size:14px;color:#dc2626;font-weight:500;">-7</button>
-                  <button type="button" data-delta="-8" class="delta-btn minus-btn" style="padding:8px 0;border:1px solid #fca5a5;border-radius:4px;background:#fef2f2;cursor:pointer;font-size:14px;color:#dc2626;font-weight:500;">-8</button>
-                  <button type="button" data-delta="-9" class="delta-btn minus-btn" style="padding:8px 0;border:1px solid #fca5a5;border-radius:4px;background:#fef2f2;cursor:pointer;font-size:14px;color:#dc2626;font-weight:500;">-9</button>
-                  <button type="button" data-delta="-10" class="delta-btn minus-btn" style="padding:8px 0;border:1px solid #fca5a5;border-radius:4px;background:#fef2f2;cursor:pointer;font-size:14px;color:#dc2626;font-weight:500;">-10</button>
-                </div>
-              </div>
-              
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:12px;background:linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%);border-radius:6px;border:1px solid #e5e7eb;">
-                <div style="color:#374151;font-size:14px;">
-                  <span style="font-weight:500;">当前调整：</span>
-                  <span id="deltaCurrentValue" style="font-weight:700;color:#111827;font-size:18px;margin-left:8px;">0</span>
-                  <span style="font-size:12px;color:#6b7280;margin-left:4px;">分</span>
-                </div>
-                <button type="button" id="deltaResetBtn" style="padding:6px 14px;font-size:13px;border:1px solid #9ca3af;background:#fff;border-radius:6px;cursor:pointer;font-weight:500;transition:all 0.2s;">
-                  <span style="margin-right:4px;">🔄</span>复原
-                </button>
-              </div>
-            </div>
-            <div class="admin-form-group">
-              <label>调整说明：</label>
-              <textarea id="adminReasonInput" placeholder="请输入调整原因..." 
-                        style="width: 100%; height: 80px; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; resize: vertical;">${currentAdjustment.reason}</textarea>
-            </div>
-            <div style="color: #6b7280; font-size: 12px; margin-top: 8px; line-height: 1.5;">
-              <strong style="color:#059669;">加分：</strong>可自定义输入 0.01-99.99 分（支持小数）<br>
-              <strong style="color:#dc2626;">扣分：</strong>快捷选择 -1 到 -10 分<br>
-              <strong>复原：</strong>清除当前调整<br>
-              <span style="color:#f59e0b;">⚠️ 调分需填写原因，提交前会二次确认</span>
-            </div>
-          </div>
-          <div class="admin-dialog-footer">
-            <button onclick="closeAdminDialog()" style="padding: 12px 24px; border: 2px solid #d1d5db; background: white; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; color: #374151; transition: all 0.2s; min-width: 100px;">取消</button>
-            <button onclick="saveAdminScoreAdjustment('${studentName}')" style="padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 700; box-shadow: 0 4px 6px -1px rgba(59,130,246,0.3); transition: all 0.2s; min-width: 100px;">💾 保存</button>
-          </div>
-        </div>
-      `;
-      
-      dialog.style.cssText = `
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 10000;
-        display: flex; align-items: center; justify-content: center;
-      `;
-      
-      // 添加样式
-      const style = document.createElement('style');
-      style.textContent = `
-        .admin-dialog-backdrop {
-          position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(0,0,0,0.5); backdrop-filter: blur(2px);
-        }
-        .admin-dialog-content {
-          position: relative; background: white; border-radius: 8px;
-          box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
-          width: 90%; max-width: 420px; max-height: 85vh; 
-          display: flex; flex-direction: column;
-        }
-        .admin-dialog-header {
-          display: flex; justify-content: space-between; align-items: center;
-          padding: 16px 20px; border-bottom: 1px solid #e5e7eb;
-          flex-shrink: 0;
-        }
-        .admin-dialog-header h3 {
-          margin: 0; font-size: 18px; font-weight: 600; color: #1f2937;
-        }
-        .admin-dialog-body {
-          padding: 20px;
-          overflow-y: auto;
-          flex: 1 1 auto;
-        }
-        .admin-form-group {
-          margin-bottom: 16px;
-        }
-        .admin-form-group label {
-          display: block; margin-bottom: 4px; font-weight: 500; color: #374151;
-        }
-        .admin-dialog-footer {
-          padding: 16px 20px; border-top: 1px solid #e5e7eb;
-          display: flex; justify-content: flex-end; gap: 12px;
-          flex-shrink: 0;
-          background: white;
-        }
-        .admin-dialog-footer button:hover {
-          transform: translateY(-2px);
-        }
-        .admin-dialog-footer button:first-child:hover {
-          background: #f3f4f6;
-          border-color: #9ca3af;
-        }
-        .admin-dialog-footer button:last-child:hover {
-          background: #2563eb;
-          box-shadow: 0 8px 12px -2px rgba(59,130,246,0.4);
-        }
-      `;
-      
-      document.head.appendChild(style);
-      document.body.appendChild(dialog);
-      
-      // 绑定UI元素
-      const minusBtns = dialog.querySelectorAll('.minus-btn');
-      const addScoreInput = dialog.querySelector('#addScoreInput');
-      const addScoreBtn = dialog.querySelector('#addScoreBtn');
-      const currentEl = dialog.querySelector('#deltaCurrentValue');
-      const statusEl = dialog.querySelector('#currentAdjustStatus');
-      const resetBtn = dialog.querySelector('#deltaResetBtn');
-      
-      // 打开时如果已有调分预选
-      if(window.currentSelectedDelta > 0) {
-        addScoreInput.value = window.currentSelectedDelta.toFixed(2);
-      }
-      
-      function renderStatus(){
-        if(currentAdjustment.score !== undefined && currentAdjustment.score !== 0){
-          if(currentAdjustment.score > 0) {
-            statusEl.innerHTML = `<span style="color:#059669;font-weight:700;">✅ 已加 ${currentAdjustment.score.toFixed(2)} 分</span>`;
-          } else {
-            statusEl.innerHTML = `<span style="color:#dc2626;font-weight:700;">⚠️ 已扣 ${Math.abs(currentAdjustment.score).toFixed(2)} 分</span>`;
-          }
-        } else {
-          statusEl.innerHTML = '<span style="color:#6b7280;font-weight:600;">⭕ 未调整</span>';
-        }
-      }
-      
-      function updateHighlight(){
-        // 更新减分按钮高亮
-        minusBtns.forEach(btn=>{
-          const v = parseInt(btn.getAttribute('data-delta'));
-          if(v === window.currentSelectedDelta){
-            btn.classList.add('selected');
-          } else {
-            btn.classList.remove('selected');
-          }
-        });
-        
-        // 更新加分按钮状态
-        if(window.currentSelectedDelta > 0) {
-          addScoreBtn.style.background='#059669';
-          addScoreBtn.style.color='#fff';
-          addScoreInput.style.borderColor='#059669';
-          addScoreInput.style.boxShadow='0 0 0 3px rgba(5, 150, 105, 0.1)';
-        } else {
-          addScoreBtn.style.background='#10b981';
-          addScoreBtn.style.color='#fff';
-          addScoreInput.style.borderColor='#d1d5db';
-          addScoreInput.style.boxShadow='none';
-        }
-        
-        // 显示当前选择（增强视觉效果）
-        if(window.currentSelectedDelta === 0) {
-          currentEl.textContent = '0';
-          currentEl.style.color = '#6b7280';
-        } else if(window.currentSelectedDelta > 0) {
-          currentEl.textContent = '+' + window.currentSelectedDelta.toFixed(2);
-          currentEl.style.color = '#059669';
-        } else {
-          currentEl.textContent = window.currentSelectedDelta.toString();
-          currentEl.style.color = '#dc2626';
-        }
-      }
-      
-      // 减分按钮事件
-      minusBtns.forEach(btn=>btn.addEventListener('click',()=>{
-        const v = parseInt(btn.getAttribute('data-delta'));
-        if(window.currentSelectedDelta === v) {
-          window.currentSelectedDelta = 0;
-        } else {
-          window.currentSelectedDelta = v;
-          addScoreInput.value = ''; // 清空加分输入
-        }
-        updateHighlight();
-      }));
-      
-      // 加分按钮事件
-      addScoreBtn.addEventListener('click',()=>{
-        const val = parseFloat(addScoreInput.value) || 0;
-        if(val > 0 && val <= 99.99) {
-          window.currentSelectedDelta = Math.round(val * 100) / 100; // 保留两位小数
-          updateHighlight();
-        } else {
-          alert('请输入0.01-99.99之间的数值');
-          addScoreInput.focus();
-        }
-      });
-      
-      // 输入框回车事件
-      addScoreInput.addEventListener('keypress',(e)=>{
-        if(e.key === 'Enter') {
-          addScoreBtn.click();
-        }
-      });
-      
-      // 输入框失焦时验证
-      addScoreInput.addEventListener('blur',()=>{
-        const val = parseFloat(addScoreInput.value) || 0;
-        if(val > 0) {
-          addScoreInput.value = val.toFixed(2);
-        }
-      });
-      
-      // 复原按钮事件
-      resetBtn.addEventListener('click',()=>{ 
-        window.currentSelectedDelta = 0; 
-        addScoreInput.value = '';
-        updateHighlight(); 
-      });
-      
-      renderStatus();
-      updateHighlight();
-    }
-
-    function closeAdminDialog() {
-      const dialog = document.querySelector('.admin-score-dialog');
-      if (dialog) dialog.remove();
-    }
-
-    async function saveAdminScoreAdjustment(studentName) {
-      console.log('saveAdminScoreAdjustment called for:', studentName);
-      console.log('currentSelectedDelta:', window.currentSelectedDelta);
-      
-      const reasonInput = document.getElementById('adminReasonInput');
-      const reason = reasonInput ? reasonInput.value.trim() : '';
-      
-      // 使用全局变量获取当前选择的分数  
-      const score = window.currentSelectedDelta || 0;
-      console.log('score:', score, 'reason:', reason);
-      let adjustmentData = null;
-      
-      console.log('开始验证分数...');
-      if(score !== 0){
-        console.log('分数不为0，进行范围验证');
-        // 验证分数范围：加分0.01-99.99，减分只能是-1,-2,-3
-        if(score > 0) {
-          console.log('正分验证');
-          if(score < 0.01 || score > 99.99) {
-            console.log('正分超出范围');
-            showAdminNotification('加分范围：0.01-99.99', 'error');
-            return;
-          }
-        } else {
-          console.log('负分验证');
-          if(![-1, -2, -3, -4, -5, -6, -7, -8, -9, -10].includes(score)) {
-            console.log('负分不在允许范围内');
-            showAdminNotification('扣分只能选择 -1 到 -10', 'error');
-            return;
-          }
-        }
-        
-        console.log('检查原因...');
-        if(!reason){
-          console.log('原因为空');
-          showAdminNotification('请填写原因', 'error');
-          return;
-        }
-        
-        const scoreDisplay = score > 0 ? '+' + score.toFixed(2) : score.toString();
-        const confirmed = await showStyledConfirm({
-          title: '确认调分',
-          studentName: studentName,
-          score: scoreDisplay,
-          reason: reason,
-          type: score > 0 ? 'add' : 'deduct'
-        });
-        if(!confirmed) return;
-        
-        adjustmentData = {
-          score: Math.round(score * 100) / 100, // 确保保留两位小数
-          reason: reason,
-          timestamp: Date.now(),
-          date: new Date().toISOString().split('T')[0],
-          operator: 'admin'
-        };
-      } else {
-        // 复原流程
-        const confirmed = await showStyledConfirm({
-          title: '确认复原',
-          studentName: studentName,
-          score: '0',
-          reason: '清除已存在的调分',
-          type: 'reset'
-        });
-        if(!confirmed) return;
-      }
-      
-      try {
-        const saveBtn = document.querySelector('.admin-dialog-footer button:last-child');
-        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '保存中...'; }
-
-        // 1. 云端同步
-        const cloudRes = await syncAdminScoreToCloud(studentName, adjustmentData);
-
-        // 2. 如果云端成功，才更新内存缓存
-        if (cloudRes.ok) {
-          if (adjustmentData) adminScoreAdjustments[studentName] = adjustmentData; else delete adminScoreAdjustments[studentName];
-          closeAdminDialog(); // 只有成功时才关闭对话框
-        }
-
-        // 3. 尝试写入 leaderboard_daily（不影响最终是否重复弹窗）
-        let lbErr = null;
-        try {
-          if (cloudRes.ok) { // 仅在云端真正成功时再写排行榜
-            await updateLeaderboardDailyScore(studentName, adjustmentData);
-          }
-        } catch(e){ lbErr = e; console.error('updateLeaderboardDailyScore error:', e); }
-
-        // 4. 刷新视图（失败也不抛出）
-        try {
-          if (cloudRes.ok) { // 只有成功状态下才刷新避免误导
-            clearAllCaches();
-            // 额外：清除首页用的 442 分缓存，确保加减分立即可见
-            if (window.__scoreCache) { try { window.__scoreCache.clear(); dbg('已清空 __scoreCache'); } catch(_) {} }
-            // 🔧 使用统一的排行榜同步系统
-            if (window.__leaderboardSyncSystem) {
-              window.__leaderboardSyncSystem.updateAllLeaderboards({ force: true, silent: true });
-            } else {
-              // 降级：使用旧的更新方式
-              updateRanking(); // 首页小榜
-              renderRankingFull({ silent: true }); // 完整榜
-            }
-            renderStudentDetail(studentName); // 详情
-          }
-        } catch (e) { console.warn('刷新视图失败（忽略）:', e); }
-
-        // 5. 单一通知出口
-        if (cloudRes.ok && !lbErr) {
-          showAdminNotification(`${studentName} ${adjustmentData? '调分已保存' : '调分已复原'}`, 'success');
-        } else if (cloudRes.ok && lbErr) {
-          showAdminNotification(`${studentName} ${adjustmentData? '调分已保存' : '调分已复原'}（排行榜稍后刷新）`, 'warning');
-        } else if (cloudRes.fatal) {
-          showAdminNotification(`${studentName} 调分保存失败`, 'error');
-        } else { // 非致命：schema 缺失等
-          showAdminNotification(`${studentName} 调分未生效（需检查云端表结构）`, 'warning');
-        }
-        
-        // 确保对话框在所有情况下都关闭
-        if (!cloudRes.ok) {
-          closeAdminDialog();
-        }
-
-      } catch (err) {
-        console.error('保存调分过程异常(外围):', err);
-        showAdminNotification('保存失败', 'error');
-        closeAdminDialog(); // 错误时也关闭对话框
-        const saveBtn = document.querySelector('.admin-dialog-footer button:last-child');
-        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '保存'; }
-      }
-    }
-
-    // ========= 云端调分同步（结构化结果，避免误报） =========
-  async function syncAdminScoreToCloud(studentName, adjustmentData) {
-      if (!supabaseClient) {
-        return { ok:false, fatal:true, reason:'supabase_not_initialized' };
-      }
-      const normalizedName = utils.normalizeStudentName(studentName);
-      try {
-        if (adjustmentData) {
-          // 手动 upsert：先 update，如果未命中再 insert，避免 42P10 约束错误
-          let { data: updData, error: updErr } = await supabaseClient
-            .from('admin_score_adjustments')
-            .update({
-              score_adjustment: adjustmentData.score,
-              reason: adjustmentData.reason,
-              timestamp: new Date(adjustmentData.timestamp).toISOString(),
-              date: adjustmentData.date,
-              operator: adjustmentData.operator,
-              updated_at: new Date().toISOString()
-            })
-            .eq('student_name', normalizedName)
-            .select();
-
-          if (updErr) {
-            if (/relation .* does not exist/i.test(updErr.message) || /column .* does not exist/i.test(updErr.message)) {
-              console.warn('[admin-adjust] 表或列缺失（非致命）:', updErr.message);
-              return { ok:false, fatal:false, reason:'schema_missing' };
-            }
-            console.error('[admin-adjust] update 错误:', updErr);
-            return { ok:false, fatal:true, reason:updErr.message };
-          }
-
-          if (!updData || updData.length === 0) {
-            const { error: insErr } = await supabaseClient
-              .from('admin_score_adjustments')
-              .insert({
-                student_name: normalizedName,
-                score_adjustment: adjustmentData.score,
-                reason: adjustmentData.reason,
-                timestamp: new Date(adjustmentData.timestamp).toISOString(),
-                date: adjustmentData.date,
-                operator: adjustmentData.operator,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              });
-            if (insErr) {
-              if (/relation .* does not exist/i.test(insErr.message) || /column .* does not exist/i.test(insErr.message)) {
-                console.warn('[admin-adjust] 表或列缺失（非致命）:', insErr.message);
-                return { ok:false, fatal:false, reason:'schema_missing' };
-              }
-              console.error('[admin-adjust] insert 错误:', insErr);
-              return { ok:false, fatal:true, reason:insErr.message };
-            }
-          }
-        } else {
-          const { error } = await supabaseClient
-            .from('admin_score_adjustments')
-            .delete()
-            .eq('student_name', normalizedName);
-          if (error) {
-            if (/relation .* does not exist/i.test(error.message)) {
-              console.warn('[admin-adjust] 删除时表缺失（忽略）');
-              return { ok:false, fatal:false, reason:'schema_missing' };
-            }
-            return { ok:false, fatal:true, reason:error.message };
-          }
-        }
-        return { ok:true };
-      } catch (e) {
-    console.error('[admin-adjust] 同步异常:', e);
-        return { ok:false, fatal:true, reason:e.message };
-      }
-    }
-
-    // 从云端加载管理员调分数据
-    async function loadAdminScoresFromCloud() {
-      try {
-        if (!supabaseClient) {
-          dbg('Supabase 客户端未初始化，使用本地数据');
-          return false;
-        }
-        
-        // 首先尝试创建表（如果不存在）
-        await ensureAdminScoreTable();
-        
-        const { data, error } = await supabaseClient
-          .from('admin_score_adjustments')
-          .select('*');
-        
-        if (error) {
-          // 如果表不存在，尝试创建后重试
-          if (error.code === '42P01') { // relation does not exist
-            dbg('管理员调分表不存在，使用本地数据');
-            return false;
-          }
-          throw error;
-        }
-        
-        // 更新本地缓存
-        const cloudAdjustments = {};
-        if (data) {
-          data.forEach(record => {
-            const studentName = record.student_name;
-            cloudAdjustments[studentName] = {
-              score: record.score_adjustment,
-              reason: record.reason,
-              timestamp: new Date(record.timestamp).getTime(),
-              date: record.date,
-              operator: record.operator
-            };
-          });
-        }
-        
-        // 合并云端数据到本地，云端数据优先
-        Object.assign(adminScoreAdjustments, cloudAdjustments);
-        localStorage.setItem('adminScoreAdjustments', JSON.stringify(adminScoreAdjustments));
-        
-        dbg('管理员调分数据已从云端同步');
-        return true;
-      } catch (error) {
-        console.error('从云端加载管理员调分失败:', error);
-        return false;
-      }
-    }
-
-    // 更新 leaderboard_daily 表中的学生分数
-  async function updateLeaderboardDailyScore(studentName, adjustmentData) {
-      if (!supabaseClient) {
-        dbg('Supabase 客户端未初始化，跳过 leaderboard_daily 更新');
-        return;
-      }
-      
-      try {
-        const normalizedName = utils.normalizeStudentName(studentName);
-        const activeDate = getActiveLeaderboardDate();
-        const activeIso = utils.toIsoDate(activeDate);
-        
-        // 🛡️ 周末保护：禁止在周六/周日修改任何排行榜数据
-        const now = new Date();
-        const currentDayOfWeek = now.getDay(); // 0=周日, 6=周六
-        
-        if (currentDayOfWeek === 0 || currentDayOfWeek === 6) {
-          const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-          console.error('[周末保护] 周末禁止修改排行榜数据', {
-            currentTime: now.toISOString(),
-            currentDay: dayNames[currentDayOfWeek],
-            targetDate: activeIso,
-            studentName: normalizedName,
-            reason: '周末不支持排行榜操作'
-          });
-          try {
-            showToast(`❌ 周末（${dayNames[currentDayOfWeek]}）不支持修改排行榜数据`);
-          } catch {}
-          return;
-        }
-        
-        // 🛡️ 严格历史数据保护：使用真实当前日期而非活跃日期
-        const realToday = new Date();
-        const realTodayIso = utils.toIsoDate(realToday);
-        const nowActiveDate = getActiveLeaderboardDate();
-        const todayIso = utils.toIsoDate(nowActiveDate);
-        
-        // 双重保护：既检查活跃日期，也检查真实日期
-        if (activeIso !== realTodayIso) {
-          console.error('[严格数据保护] 拒绝修改历史数据', {
-            requestedDate: activeIso,
-            currentActiveDate: todayIso,
-            realToday: realTodayIso,
-            studentName: normalizedName,
-            timestamp: now.toISOString(),
-            reason: '只允许修改当前真实日期的数据'
-          });
-          try {
-            showToast(`❌ 历史数据保护：只能修改今日(${realTodayIso})数据，拒绝修改 ${activeIso}`);
-          } catch {}
-          return;
-        }
-        
-        if (activeIso !== todayIso) {
-          console.warn('[活跃日期检查] 活跃日期与真实日期不一致', {
-            activeDate: activeIso,
-            realDate: realTodayIso,
-            note: '可能处于日期切换窗口期'
-          });
-        }
-        
-        // 获取当前学生在 leaderboard_daily 中的记录
-        const { data: existingRecord, error: fetchError } = await supabaseClient
-          .from('leaderboard_daily')
-          .select('*')
-          .eq('student_key', normalizedName)
-          .eq('date', activeIso)
-          .single();
-        
-        if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows returned
-          throw fetchError;
-        }
-        
-        if (!existingRecord) {
-          // 🔒 写库保护：验证日期合法性
-          if (!window.__dataProtectionSystem.canWriteLeaderboardDaily(activeIso, 'insert')) {
-            console.error('[写库保护] 拒绝插入历史数据到 leaderboard_daily');
-            return;
-          }
-          
-          // 若还没有记录，但我们需要写入调分：先尝试创建空基础行（需依赖 RULE_VERSION 常量）
-          const baseInsert = {
-            student_key: normalizedName,
-            date: activeIso,
-            d1: 0,
-            d2: 0,
-            d3: 0,
-            total: 0,
-            rank: null,
-            rule_version: (typeof RULE_VERSION!=='undefined'? RULE_VERSION : 1),
-            admin_adjustment: 0,
-            created_at: new Date().toISOString()
-          };
-          const { error: insertErr } = await supabaseClient
-            .from('leaderboard_daily')
-            .insert(baseInsert);
-          if (insertErr) {
-            dbg('插入空 leaderboard_daily 行失败，跳过调分写入', insertErr);
-            return;
-          }
-          dbg(`已为 ${studentName} 创建 leaderboard_daily 初始记录`);
-        }
-        
-        // 重新计算包含管理员调整的总分
-        // 重新获取（若刚插入则需再 select 一次）
-        let record = existingRecord;
-        if (!record) {
-          const { data: rec2 } = await supabaseClient
-            .from('leaderboard_daily')
-            .select('d1,d2,d3,admin_adjustment')
-            .eq('student_key', normalizedName)
-            .eq('date', activeIso)
-            .single();
-          record = rec2 || { d1:0,d2:0,d3:0,admin_adjustment:0 };
-        }
-        const baseTotal = (record.d1 || 0) + (record.d2 || 0) + (record.d3 || 0);
-        const adminAdjustment = adjustmentData ? adjustmentData.score : 0;
-        const newTotal = +(Math.max(0, Math.min(100, baseTotal + adminAdjustment))).toFixed(2);
-        
-        // 🔒 写库保护：验证日期合法性
-        if (!window.__dataProtectionSystem.canWriteLeaderboardDaily(activeIso, 'update-adjustment')) {
-          console.error('[写库保护] 拒绝更新历史数据到 leaderboard_daily');
-          return;
-        }
-        
-        // 尝试更新记录（包含 admin_adjustment 字段）
-        let updateData = {
-          total: newTotal,
-          updated_at: new Date().toISOString()
-        };
-        
-        // 尝试添加 admin_adjustment 字段，如果字段不存在会被忽略
-        try {
-          updateData.admin_adjustment = adminAdjustment;
-        } catch (e) {
-          // 字段可能不存在，继续更新其他字段
-        }
-        
-        const { error: updateError } = await supabaseClient
-          .from('leaderboard_daily')
-          .update(updateData)
-          .eq('student_key', normalizedName)
-          .eq('date', activeIso);
-        
-        if (updateError) {
-          // 如果包含 admin_adjustment 字段失败，尝试只更新 total
-          if (updateError.message && updateError.message.includes('admin_adjustment')) {
-            // 🔒 写库保护：二次验证（重试前）
-            if (!window.__dataProtectionSystem.canWriteLeaderboardDaily(activeIso, 'update-retry')) {
-              console.error('[写库保护] 拒绝重试更新历史数据');
-              return;
-            }
-            
-            dbg('admin_adjustment 字段不存在，仅更新 total 分数');
-            const { error: retryError } = await supabaseClient
-              .from('leaderboard_daily')
-              .update({
-                total: newTotal,
-                updated_at: new Date().toISOString()
-              })
-              .eq('student_key', normalizedName)
-              .eq('date', activeIso);
-            
-            if (retryError) throw retryError;
-          } else {
-            throw updateError;
-          }
-        }
-        
-        // 重新计算当日排名
-        await recalculateDailyRanking(activeIso);
-        
-        dbg(`已更新 ${studentName} 在 leaderboard_daily 中的分数: ${baseTotal} -> ${newTotal} (调整: ${adminAdjustment})`);
-        
-      } catch (error) {
-        console.error('更新 leaderboard_daily 失败:', error);
-        // 不抛出错误，因为这不应该阻止管理员调分功能
-      }
-    }
-
-    // 重新计算指定日期的排名
-    async function recalculateDailyRanking(dateIso) {
-      if (!supabaseClient) return;
-      
-      // 🛡️ 周末保护：禁止在周六/周日修改任何排行榜数据
-      const now = new Date();
-      const currentDayOfWeek = now.getDay();
-      
-      if (currentDayOfWeek === 0 || currentDayOfWeek === 6) {
-        const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-        console.error('[周末保护] 周末禁止重新计算排名', {
-          currentTime: now.toISOString(),
-          currentDay: dayNames[currentDayOfWeek],
-          targetDate: dateIso,
-          reason: '周末不支持排行榜操作'
-        });
-        return;
-      }
-      
-      // 🛡️ 严格历史数据保护：禁止重算非当前真实日期的数据
-      const realToday = new Date();
-      const realTodayIso = utils.toIsoDate(realToday);
-      
-      if (dateIso !== realTodayIso) {
-        console.error('[严格历史数据保护] 禁止重算历史日期排名', {
-          targetDate: dateIso,
-          realToday: realTodayIso,
-          timestamp: realToday.toISOString(),
-          reason: '历史排行榜数据不可修改，防止数据污染'
-        });
-        try {
-          showToast(`❌ 历史数据保护：禁止修改 ${dateIso} 的排行榜数据`);
-        } catch {}
-        return;
-      }
-      
-      // 🛡️ 记录合法的当日排名重算操作
-      const todayIso = utils.toIsoDate(getActiveLeaderboardDate());
-      console.log('[recalculateDailyRanking] 当日排名重算', {
-        targetDate: dateIso,
-        currentActiveDate: todayIso,
-        isToday: dateIso === realTodayIso,
-        timestamp: now.toISOString()
-      });
-
-      // 在重新计算排名前，先尝试补齐缺失的 rule_version（一次性修复历史脏数据）
-      try {
-        // 🔒 写库保护：验证日期合法性
-        if (window.__dataProtectionSystem.canWriteLeaderboardDaily(dateIso, 'fix-rule-version')) {
-          const { error: fixErr } = await supabaseClient
-            .from('leaderboard_daily')
-            .update({ rule_version: RULE_VERSION })
-            .is('rule_version', null)
-            .eq('date', dateIso);
-          if (fixErr) dbg('补齐缺失 rule_version 失败(可忽略):', fixErr.message || fixErr);
-        } else {
-          console.warn('[写库保护] 跳过历史数据的 rule_version 补齐');
-        }
-      } catch (e) { /* ignore */ }
-      
-      try {
-        // 获取该日期所有有分数的记录（需要 window 字段避免 upsert 时 NOT NULL 约束违反）
-        const { data: records, error: fetchError } = await supabaseClient
-          .from('leaderboard_daily')
-          .select('student_key, total, window')
-          .eq('date', dateIso)
-          .gt('total', 0)
-          .order('total', { ascending: false });
-        
-        if (fetchError) throw fetchError;
-        if (!records || records.length === 0) return;
-        
-        // 计算当前日期的 window（备用，以防记录中缺失）
-        const targetDate = new Date(dateIso + 'T00:00:00');
-        const weekday0to6 = targetDate.getDay();
-        const fallbackWindow = __leaderboardWindowJSON(weekday0to6);
-        
-        // 计算排名（处理并列情况）
-        let rank = 1;
-        const updates = [];
-        for (let i = 0; i < records.length; i++) {
-          if (i > 0 && records[i].total < records[i - 1].total) {
-            rank = i + 1;
-          }
-          updates.push({
-            student_key: records[i].student_key,
-            date: dateIso,
-            rank: rank,
-            // 确保不会因为缺失字段触发 NOT NULL 约束错误
-            rule_version: RULE_VERSION,
-            window: records[i].window || fallbackWindow
-          });
-        }
-        
-        // 🔒 写库保护：批量更新前验证日期合法性
-        if (!window.__dataProtectionSystem.canWriteLeaderboardDaily(dateIso, 'ranking-update')) {
-          console.error('[写库保护] 拒绝更新历史排名数据到 leaderboard_daily');
-          return;
-        }
-        
-        // 批量更新排名
-        const { error: updateError } = await supabaseClient
-          .from('leaderboard_daily')
-          .upsert(updates, { onConflict: 'date,student_key' });
-        
-        if (updateError) throw updateError;
-        
-        // 清除排行榜相关缓存
-        try {
-          if (typeof __rankTopCache !== 'undefined') __rankTopCache.clear();
-          if (window.__scoreCache) window.__scoreCache.clear();
-          dbg('[recalculateDailyRanking] 已清除排行榜缓存');
-        } catch(e) {}
-        
-        dbg(`已重新计算 ${dateIso} 的排名，涉及 ${updates.length} 名学生`);
-        
-      } catch (error) {
-        console.error('重新计算排名失败:', error);
-      }
-    }
-
-    // 确保管理员调分表存在，并同步现有的调分数据到 leaderboard_daily
-    async function ensureAdminScoreTable() {
-      try {
-        // 注意：这需要数据库管理员权限，实际使用时应该预先在 Supabase 控制台创建表
-        // 管理员调分表结构
-        dbg('管理员调分表结构（需要在 Supabase 控制台手动创建）:');
-        dbg(`
-          CREATE TABLE IF NOT EXISTS admin_score_adjustments (
-            id SERIAL PRIMARY KEY,
-            student_name TEXT NOT NULL,
-            score_adjustment DECIMAL(5,2) NOT NULL,
-            reason TEXT NOT NULL,
-            timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            date DATE NOT NULL,
-            operator TEXT NOT NULL DEFAULT 'admin',
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          );
-          -- 可选：添加唯一约束以支持数据库级别幂等（当前前端已手动 upsert）
-          -- ALTER TABLE admin_score_adjustments ADD CONSTRAINT admin_score_adjustments_student_name_key UNIQUE(student_name);
-          
-          -- 为 leaderboard_daily 表添加管理员调分字段（可选）
-          ALTER TABLE leaderboard_daily ADD COLUMN IF NOT EXISTS admin_adjustment DECIMAL(5,2) DEFAULT 0;
-        `);
-        
-        // 同步现有的管理员调分到 leaderboard_daily
-        await syncExistingAdminScoresToLeaderboard();
-        
-      } catch (error) {
-        console.error('确保管理员调分表存在失败:', error);
-      }
-    }
-
-    // 同步现有的管理员调分数据到 leaderboard_daily
-    async function syncExistingAdminScoresToLeaderboard() {
-      if (!supabaseClient) return;
-      
-      try {
-        const activeDate = getActiveLeaderboardDate();
-        const activeIso = utils.toIsoDate(activeDate);
-        
-        // 遍历本地的管理员调分数据
-        for (const [studentName, adjustment] of Object.entries(adminScoreAdjustments)) {
-          if (adjustment && adjustment.score !== 0) {
-            await updateLeaderboardDailyScore(studentName, adjustment);
-          }
-        }
-        
-        dbg('已同步现有管理员调分数据到 leaderboard_daily');
-      } catch (error) {
-        console.error('同步现有管理员调分失败:', error);
-      }
-    }
-
+    // 管理员调分功能已下线
     function clearAllCaches() {
       // 清除所有相关缓存
       rankingDataCache = null;
@@ -7384,32 +6413,11 @@
         window.rankingModeHtmlCache.daily = null;
         window.rankingModeHtmlCache.weekly = null;
       }
-      dbg('管理员调分后清除所有缓存');
+      dbg('已清除排行榜缓存');
     }
+    function getAdminScoreAdjustment(studentName) { return 0; }
 
-    function getAdminScoreAdjustment(studentName) {
-      const adjustment = adminScoreAdjustments[studentName];
-      if (!adjustment) return 0;
-      // 仅当天有效：校验日期与当前活跃日期一致
-      try {
-        const activeIso = utils.toIsoDate(getActiveLeaderboardDate());
-        return (adjustment.date === activeIso) ? (adjustment.score || 0) : 0;
-      } catch (_) {
-        // 降级：如无法获取活跃日期，则不应用历史调分
-        return 0;
-      }
-    }
-
-    function getAdminScoreAdjustmentDetails(studentName) {
-      const adjustment = adminScoreAdjustments[studentName] || null;
-      if (!adjustment) return null;
-      try {
-        const activeIso = utils.toIsoDate(getActiveLeaderboardDate());
-        return (adjustment.date === activeIso) ? adjustment : null;
-      } catch (_) {
-        return null;
-      }
-    }
+    function getAdminScoreAdjustmentDetails(studentName) { return null; }
 
   async function renderRankingFull(options) {
       options = options || {};
@@ -8254,12 +7262,6 @@
           totalRaw += (d1.breakdown.fullBonusAward || 0);
         }
         
-        // 管理员调分
-        const adminAdjustment = getAdminScoreAdjustment(studentName);
-        if (adminAdjustment !== 0) {
-          totalRaw += adminAdjustment;
-        }
-        
         totalScore = totalRaw;
         totalScoreDisplay = totalRaw.toFixed(1);
       }
@@ -8465,16 +7467,6 @@
            </div>`
         : '';
       
-      // 管理员调整信息
-      const adminAdjustment = getAdminScoreAdjustment(studentName);
-      const adminAdjustmentDetails = getAdminScoreAdjustmentDetails(studentName);
-      const adminAdjustmentLine = adminAdjustment !== 0 
-        ? `<div class="score-sub admin-line" style="color:#cbd5e1;border-left:2px solid #cbd5e1;padding-left:8px;margin-top:6px;font-weight:500;">
-             <span style="display:inline-block;min-width:72px;">管理员调整：</span><span>${adminAdjustment > 0 ? '+' : ''}${adminAdjustment.toFixed(2)}分</span>
-             ${adminAdjustmentDetails && adminAdjustmentDetails.reason ? `<br><span style="font-size:11px;opacity:.7;">说明：${adminAdjustmentDetails.reason}</span>` : ''}
-           </div>`
-        : '';
-      
       const content = `
         <div class="lb-section">
           <div class="lb-card lb-card--gradient" style="background:linear-gradient(135deg,#667eea,#764ba2);border:none;">
@@ -8482,7 +7474,6 @@
             <div style="margin-top:8px;font-size:30px;font-weight:800;">${totalScoreDisplay}</div>
             <div style="opacity:.9;font-size:11px;">总分 / 100</div>
             ${totalBonusLine}
-            ${adminAdjustmentLine}
           </div>
           <div style="margin-top:6px;color:#64748b;font-size:12px;">提示：当日无练琴则不计分。</div>
         </div>
@@ -8529,7 +7520,7 @@
         <div class="lb-section">
           <div class="lb-card">
             <h4>💡 计算公式</h4>
-            <p>总分 = D1×40% + D2×40% + D3×20%${(d1.breakdown && d1.breakdown.gotFullBonus)?' + 满勤加成':''}${adminAdjustment !== 0 ? ' + 管理员调整' : ''} = ${d1.score.toFixed(1)} + ${d2.score.toFixed(1)} + ${d3res.score.toFixed(1)}${(d1.breakdown && d1.breakdown.gotFullBonus)?` + ${(d1.breakdown.fullBonusAward||0)}`:''}${adminAdjustment !== 0 ? ` ${adminAdjustment > 0 ? '+' : ''}${adminAdjustment.toFixed(2)}` : ''} = <strong>${totalScore.toFixed(1)}</strong></p>
+            <p>总分 = D1×40% + D2×40% + D3×20%${(d1.breakdown && d1.breakdown.gotFullBonus)?' + 满勤加成':''} = ${d1.score.toFixed(1)} + ${d2.score.toFixed(1)} + ${d3res.score.toFixed(1)}${(d1.breakdown && d1.breakdown.gotFullBonus)?` + ${(d1.breakdown.fullBonusAward||0)}`:''} = <strong>${totalScore.toFixed(1)}</strong></p>
           </div>
         </div>
       `;
@@ -8543,6 +7534,7 @@
       const existing = document.querySelector('.score-detail-modal, .lb-modal');
       if (existing) {
         existing.remove();
+        releaseModalScrollLock();
       }
       
       const modal = document.createElement('div');
@@ -8560,6 +7552,7 @@
       `;
       
       document.body.appendChild(modal);
+      acquireModalScrollLock();
       
       // 显示动画
       requestAnimationFrame(() => {
@@ -8590,6 +7583,7 @@
         modal.classList.remove('show');
         setTimeout(() => {
           modal.remove();
+          releaseModalScrollLock();
         }, 200);
       }
     }
@@ -8868,53 +7862,6 @@
         if (rankValEl) rankValEl.textContent = '--';
         if (rankMetaEl) rankMetaEl.textContent = '加载中...';
       }
-      
-      // 管理员模式：在姓名旁边添加调分按钮和显示当前调整
-      const existingAdminBtn = studentNameEl.parentElement.querySelector('.admin-detail-btn');
-      const existingAdminInfo = studentNameEl.parentElement.querySelector('.admin-adjustment-info');
-      if (existingAdminBtn) existingAdminBtn.remove();
-      if (existingAdminInfo) existingAdminInfo.remove();
-      
-      if (adminMode) {
-        const adminBtn = document.createElement('button');
-        adminBtn.className = 'admin-detail-btn';
-        adminBtn.innerHTML = '⚙️ 调分';
-        adminBtn.title = '管理员：调整分数';
-        adminBtn.style.cssText = `
-          margin-left: 12px; padding: 4px 8px; border: none; border-radius: 6px;
-          background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-size: 12px;
-          cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
-        `;
-        adminBtn.onmouseover = () => {
-          adminBtn.style.transform = 'scale(1.05)';
-          adminBtn.style.boxShadow = '0 4px 8px rgba(239, 68, 68, 0.4)';
-        };
-        adminBtn.onmouseout = () => {
-          adminBtn.style.transform = 'scale(1)';
-          adminBtn.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.3)';
-        };
-        adminBtn.onclick = () => openAdminScoreDialog(studentName);
-        
-        studentNameEl.parentElement.appendChild(adminBtn);
-        
-        // 显示当前调分状态
-        const currentAdjustment = getAdminScoreAdjustment(studentName);
-        if (currentAdjustment !== 0) {
-          const adminInfo = document.createElement('div');
-          adminInfo.className = 'admin-adjustment-info';
-          adminInfo.style.cssText = `
-            margin-left: 12px; padding: 2px 6px; border-radius: 4px; font-size: 11px;
-            background: ${currentAdjustment > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'};
-            color: ${currentAdjustment > 0 ? '#059669' : '#dc2626'};
-            border: 1px solid ${currentAdjustment > 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'};
-          `;
-          adminInfo.textContent = `${currentAdjustment > 0 ? '+' : ''}${currentAdjustment.toFixed(1)}分`;
-          adminInfo.title = '当前管理员调整分数';
-          
-          studentNameEl.parentElement.appendChild(adminInfo);
-        }
-      }
-      
       document.getElementById('studentGrade').textContent = meta.grade || '未知年级';
       document.getElementById('studentMajor').textContent = meta.major || '未知专业';
 
@@ -12966,12 +11913,6 @@
     total += (d1.breakdown.fullBonusAward || 0);
   }
   
-  // 管理员调分
-  const adminAdjustment = getAdminScoreAdjustment(student.name);
-  if (adminAdjustment !== 0) {
-    total += adminAdjustment;
-  }
-  
   total = +(Math.max(0, Math.min(100, total))).toFixed(2);
   const bonus = (d1.breakdown && d1.breakdown.gotFullBonus) ? (d1.breakdown.fullBonusAward || 0) : 0;
   
@@ -12980,8 +11921,7 @@
     d1: d1.score, 
     d2: d2.score, 
     d3: d3.score, 
-    bonus: bonus,
-    adminAdjustment: adminAdjustment
+    bonus: bonus
   };
     }
 
@@ -13019,15 +11959,7 @@
       // 如果本地缓存有效，优先使用；否则检查内存缓存
       if (localCache && localCache.topStudents && Array.isArray(localCache.topStudents)) {
         dbg('首页排行榜使用本地缓存，确保与日排行榜一致', { count: localCache.topStudents.length });
-        
-        // 使用缓存数据渲染（验证管理员调分是否变化）
-        const stale = localCache.topStudents.some(stu => {
-          const curAdj = getAdminScoreAdjustment(stu.name) || 0;
-          const cachedAdj = (stu.__442 && typeof stu.__442.adminAdjustment==='number') ? stu.__442.adminAdjustment : 0;
-          return curAdj !== cachedAdj;
-        });
-        
-        if (!stale) {
+        if (true) {
           // 直接渲染缓存数据
           const topStudents = localCache.topStudents.slice(0, 3);
           rankingList.innerHTML = topStudents.map((student, index) => {
@@ -13053,23 +11985,9 @@
           rankingList.__filled = true;
           dbg('首页小榜使用 localStorage 缓存渲染完成');
           return;
-        } else {
-          dbg('管理员调分变化导致 localStorage 缓存失效，重新计算');
-        }
       } else if (rankingDataCache && (now - lastRankingUpdateTime) < RANKING_CACHE_DURATION) {
-        // 如果缓存存在但某个学生的管理员调分已变化（内存对象被修改），需要重新计算。
-        // 简单策略：比较 topStudents 中的调分是否与当前 getAdminScoreAdjustment 返回一致。
-        const stale = rankingDataCache.topStudents && rankingDataCache.topStudents.some(stu => {
-          const curAdj = getAdminScoreAdjustment(stu.name) || 0;
-          const cachedAdj = (stu.__442 && typeof stu.__442.adminAdjustment==='number') ? stu.__442.adminAdjustment : 0;
-          return curAdj !== cachedAdj; // 发现任一差异则视为过期
-        });
-        if (!stale) {
-          dbg('使用内存缓存的排行榜数据');
-          return;
-        } else {
-          dbg('管理员调分变化导致首页小榜缓存失效，重新计算');
-        }
+        dbg('使用内存缓存的排行榜数据');
+        return;
       }
       
       const t0 = performance.now();
@@ -13120,9 +12038,7 @@
         const slots = getLeaderboardSlotsMinutes(student.name, activeDate) || [];
         const slotSig = slots.map(s=>s.start+'-'+s.end).join('|');
         let practicedMin = 0; if (intervalsMs) { for (const iv of intervalsMs) practicedMin += (iv.end-iv.start)/60000; }
-  // 将管理员调分纳入签名（若调整变更即强制重新计算）
-  const adminAdj = getAdminScoreAdjustment(student.name) || 0;
-  const sig = `${lastLogTs}|${slotSig}|${Math.floor(practicedMin)}|adj:${adminAdj}`;
+  const sig = `${lastLogTs}|${slotSig}|${Math.floor(practicedMin)}`;
         let s;
         const c = cache.get(student.name);
         if (c && c.sig === sig) { s = c.s; }
@@ -13495,7 +12411,10 @@
       `;
       
       document.getElementById('modalContent').innerHTML = modalContent;
-      document.getElementById('modalOverlay').style.display = 'flex';
+      const modalOverlay = document.getElementById('modalOverlay');
+      const wasClosed = getComputedStyle(modalOverlay).display === 'none';
+      modalOverlay.style.display = 'flex';
+      if (wasClosed) acquireModalScrollLock();
     }
 
     function generateCurrentStatusHTML(student) {
@@ -13519,7 +12438,11 @@
     }
 
     function closeModal() {
-      document.getElementById('modalOverlay').style.display = 'none';
+      const modalOverlay = document.getElementById('modalOverlay');
+      if (getComputedStyle(modalOverlay).display !== 'none') {
+        modalOverlay.style.display = 'none';
+        releaseModalScrollLock();
+      }
     }
 
     // ==== 事件监听器 ====
@@ -14327,12 +13250,6 @@
             total += (d1Result.breakdown.fullBonusAward || 0);
           }
           
-          // 2. 管理员调分
-          const adminAdjustment = getAdminScoreAdjustment(studentName);
-          if (adminAdjustment !== 0) {
-            total += adminAdjustment;
-          }
-          
           // 限制在0-100范围内
           total = +(Math.max(0, Math.min(100, total))).toFixed(2);
           
@@ -14545,12 +13462,6 @@
           setConnectionStatus('syncing', '加载数据...');
           dbg('开始获取数据...');
           await fetchAllData();
-          dbg('加载管理员调分数据...');
-          try {
-            await loadAdminScoresFromCloud();
-          } catch (error) {
-            dbg('管理员调分数据加载失败，将使用本地数据:', error);
-          }
           dbg('设置实时监听...');
           setupRealtime();
           dbg('🌐 启动时间轴WebSocket...');
@@ -15714,8 +14625,7 @@
           todayUTC: todayUTC,
           protectionStatus: '已启用',
           protectedOperations: [
-            '✅ updateLeaderboardDailyScore: 管理员调分前验证（3个写入点）',
-            '✅ recalculateDailyRanking: 排名计算前验证（2个写入点）',
+                        '✅ recalculateDailyRanking: 排名计算前验证（2个写入点）',
             '✅ __leaderboardSyncSystem: 历史批量同步前验证（1个写入点）'
           ],
           totalProtectedWritePoints: 6,
@@ -16285,7 +15195,11 @@
       document.getElementById('coinHistName').textContent = studentName;
       const listEl = document.getElementById('coinHistoryList');
       listEl.innerHTML = '<div class="coin-hi-empty">加载中...</div>';
-      document.getElementById('coinHistoryModal').classList.add('show');
+      const modal = document.getElementById('coinHistoryModal');
+      if (!modal.classList.contains('show')) {
+        modal.classList.add('show');
+        acquireModalScrollLock();
+      }
 
       try {
         const { data, error } = await supabaseClient
@@ -16334,7 +15248,11 @@
     }
 
     function closeCoinHistory() {
-      document.getElementById('coinHistoryModal').classList.remove('show');
+      const modal = document.getElementById('coinHistoryModal');
+      if (modal.classList.contains('show')) {
+        modal.classList.remove('show');
+        releaseModalScrollLock();
+      }
     }
 
     function riSwitchTab(idx, btn) {
