@@ -104,8 +104,6 @@
       --radius-sm:8px;
       --card-pad:24px;
       --gap-md:16px;
-      --safe-top: env(safe-area-inset-top, 0px);
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
     /*
      * ==============================
@@ -123,22 +121,11 @@
       box-sizing: border-box;
     }
 
-    html, body {
-      height: 100%;
-    }
-
-    html.app-scroll-locked,
-    body.app-scroll-locked {
-      overflow: hidden !important;
-      overscroll-behavior: none !important;
-    }
-
     body {
       /* 系统 / 本地字体栈：避免外部字体请求失败 */
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, "Segoe UI", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", Roboto, sans-serif;
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       min-height: 100vh;
-      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -152,7 +139,6 @@
       -moz-osx-font-smoothing: grayscale;
       text-rendering: optimizeLegibility;
       overscroll-behavior-y: none; /* 防止下拉刷新导致页面整体拖动 */
-      padding-bottom: var(--safe-bottom);
     }
     
     html {
@@ -184,8 +170,7 @@
     /* 首页居中展示 */
     #homeView { 
       min-height: 100vh;
-      min-height: 100dvh;
-      padding: calc(24px + var(--safe-top)) 16px calc(24px + var(--safe-bottom));
+      padding: 24px 16px;
       /* overflow-y: auto; 移除以避免双重滚动条 */
     }
 
@@ -463,7 +448,7 @@
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
-      transition: background-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+      transition: all 200ms ease;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -487,24 +472,17 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      height: 100dvh;
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       z-index: 100;
       transform: scale(0);
       opacity: 0;
       transform-origin: center center;
-      transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease;
+      transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
       display: flex;
       flex-direction: column;
       overflow-y: auto;
-      overscroll-behavior-y: contain;
-      overscroll-behavior-x: none;
       -webkit-overflow-scrolling: touch;
-      will-change: transform, opacity;
-      contain: layout style paint;
-      backface-visibility: hidden;
-      padding-bottom: var(--safe-bottom);
-      touch-action: pan-y;
+  will-change: transform, opacity;
     }
     .list-view.expanding {
       transform: scale(1);
@@ -519,7 +497,7 @@
       align-items: center; 
       gap: 12px; 
       margin-bottom: 16px; 
-      padding: calc(24px + var(--safe-top)) 16px 0;
+      padding: 24px 16px 0;
       position: sticky;
       top: 0;
       /* 与主背景统一，无底边线 */
@@ -557,7 +535,7 @@
       width: 100%;
       max-width: 960px;
       margin: 0 auto;
-      padding: 0 16px calc(32px + var(--safe-bottom));
+      padding: 0 16px 32px;
     }
     .stu-card {
       border-radius: 12px;
@@ -579,7 +557,7 @@
         animation-duration: 150ms !important; 
         touch-action: manipulation; 
       }
-      .list-view { transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1), opacity 160ms ease; }
+      .list-view { transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1); }
     }
     .stu-card:hover { 
       transform: translateY(-1px); 
@@ -637,7 +615,6 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      height: 100dvh;
       background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
       z-index: 200;
       transform: translateX(100%);
@@ -645,12 +622,7 @@
       display: flex;
       flex-direction: column;
       overflow-y: auto;
-      overscroll-behavior-y: contain;
-      overscroll-behavior-x: none;
       -webkit-overflow-scrolling: touch;
-      will-change: transform;
-      padding-bottom: var(--safe-bottom);
-      touch-action: pan-y;
     }
     
     .detail-view.active {
@@ -672,7 +644,7 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: calc(24px + var(--safe-top)) 16px 16px;
+      padding: 24px 16px 16px;
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       position: sticky;
       top: 0;
@@ -686,7 +658,7 @@
       letter-spacing: -0.01em;
     }
 
-  .detail-content { padding: 12px 16px calc(32px + var(--safe-bottom)); display: flex; flex-direction: column; gap: var(--gap-md); }
+  .detail-content { padding: 12px 16px 32px; display: flex; flex-direction: column; gap: var(--gap-md); }
   @media (max-width: 560px){ .detail-content { padding-top: 16px; } }
 
     /* 个人信息卡片 */
@@ -723,13 +695,6 @@
   .coin-badge-detail:hover {
     background: rgba(251, 191, 36, 0.25);
     transform: translateY(-1px);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto !important; }
-    .list-view, .detail-view, .stu-card, .view-details-btn, .back-btn, .info-card, .status-card, .timeline-card, .history-card {
-      transition: none !important;
-      animation: none !important;
-    }
   }
 
   /* 音符币流水弹窗样式 */
@@ -2295,6 +2260,16 @@
     padding: 6px 16px 2px;
     min-height: 20px;
   }
+  .wlb-notice {
+    margin: 0 16px 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(59,130,246,.08);
+    border: 1px solid rgba(59,130,246,.16);
+    color: var(--text-2);
+    font-size: 12px;
+    line-height: 1.7;
+  }
   /* List */
   .wlb-list {
     padding: 4px 0 8px;
@@ -2726,7 +2701,7 @@
           <span class="wlb-title">🏅 本周排行榜</span>
           <div style="display:flex;align-items:center;gap:8px;">
             <span class="wlb-updated" id="wlbUpdated"></span>
-            <button class="ranking-info-btn" onclick="openRankingInfoModal()" title="榜单规则说明">?</button>
+            <button class="ranking-info-btn" onclick="document.getElementById('rankingInfoModal').classList.add('active')" title="榜单规则说明">?</button>
           </div>
         </div>
         <!-- Tab 切换 -->
@@ -2737,17 +2712,18 @@
           <div class="wlb-tab"        onclick="switchWlbTab('进步榜',this)">进步榜</div>
         </div>
         <div class="wlb-subtitle" id="wlbSubtitle"></div>
+        <div class="wlb-notice" id="wlbNotice" style="display:none"></div>
         <div class="wlb-list" id="wlbList">
           <div class="wlb-loading"><span class="spin-sm"></span> 加载中…</div>
         </div>
       </div>
 
       <!-- 排行榜规则说明弹窗 -->
-      <div class="ranking-info-modal" id="rankingInfoModal" onclick="if(event.target===this)closeRankingInfoModal()">
+      <div class="ranking-info-modal" id="rankingInfoModal" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="ranking-info-dialog">
           <div class="ri-header">
             <span class="ri-title">🏅 排行榜说明</span>
-            <button class="ri-close" onclick="closeRankingInfoModal()">✕</button>
+            <button class="ri-close" onclick="document.getElementById('rankingInfoModal').classList.remove('active')">✕</button>
           </div>
 
           <!-- Tab 切换栏 -->
@@ -3092,8 +3068,6 @@
     if(fallbackPollTimer) return;
     fallbackPollTimer = setInterval(()=>{
       if(!navigator.onLine) return;
-      // 页面不可见时暂停兜底轮询，降低后台资源占用
-      if (document.hidden) return;
       
       // 兜底数据同步
       const now = new Date();
@@ -3129,7 +3103,7 @@
   // === 调试日志统一入口 ===
   // 将 DEBUG 置为 false 可静默所有 dbg 日志，而不影响 console.error/warn。
   // ✅ 问题已修复，关闭调试模式以提高性能
-  const DEBUG = false; // 默认关闭调试日志，减少主线程阻塞与掉帧
+  const DEBUG = true; // 临时开启调试模式，查看房间样式问题
   window.DEBUG = DEBUG; // 设置为全局变量以便其他代码访问
   // 日志节流：每秒最多输出 MAX_LOGS_PER_SEC 条；超过的合并为一条摘要。
   const MAX_LOGS_PER_SEC = 80; // 安全上限（可调）
@@ -5274,51 +5248,6 @@
   rankingOrigin: null // 记录进入“完整排行榜”的来源（home 或 list）
     };
 
-    const rootScrollLockState = { active: false, scrollTop: 0 };
-    const modalScrollLockSources = new Set();
-    function lockRootScroll() {
-      if (rootScrollLockState.active) return;
-      rootScrollLockState.active = true;
-      rootScrollLockState.scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
-      document.documentElement.classList.add('app-scroll-locked');
-      document.body.classList.add('app-scroll-locked');
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${rootScrollLockState.scrollTop}px`;
-      document.body.style.left = '0';
-      document.body.style.right = '0';
-      document.body.style.width = '100%';
-    }
-
-    function unlockRootScroll() {
-      if (!rootScrollLockState.active) return;
-      const restoreTop = rootScrollLockState.scrollTop;
-      rootScrollLockState.active = false;
-      document.documentElement.classList.remove('app-scroll-locked');
-      document.body.classList.remove('app-scroll-locked');
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.left = '';
-      document.body.style.right = '';
-      document.body.style.width = '';
-      window.scrollTo(0, restoreTop);
-    }
-
-    function acquireModalScrollLock(source = 'modal') {
-      modalScrollLockSources.add(source);
-      syncRootScrollLock();
-    }
-
-    function releaseModalScrollLock(source = 'modal') {
-      modalScrollLockSources.delete(source);
-      syncRootScrollLock();
-    }
-
-    function syncRootScrollLock() {
-      const shouldLock = uiState.view !== 'home' || modalScrollLockSources.size > 0;
-      if (shouldLock) lockRootScroll();
-      else unlockRootScroll();
-    }
-
     // 排行榜显示模式
     let rankingMode = 'daily'; // 'daily' 或 'weekly'
     // 排行榜模式 HTML 内存缓存，避免日/周切换闪烁
@@ -5339,7 +5268,7 @@
     // 自定义异步密码弹窗，每次都要求输入密码
     function ensureAdminAuthenticated(){
       return new Promise(resolve => {
-        if(document.querySelector('.admin-auth-dialog')) { resolve(false); return; } // 已存在则不重复
+        if(document.querySelector('.admin-auth-dialog')) return; // 已存在则不重复
         const wrap = document.createElement('div');
         wrap.className = 'admin-auth-dialog';
         wrap.innerHTML = `
@@ -5367,21 +5296,12 @@
         `;
         document.head.appendChild(style);
         document.body.appendChild(wrap);
-        acquireModalScrollLock('admin-auth');
         const inputEl = wrap.querySelector('#adminAuthPassword');
         const errEl = wrap.querySelector('#adminAuthError');
         const okBtn = wrap.querySelector('#adminAuthOk');
         const cancelBtn = wrap.querySelector('#adminAuthCancel');
         const toggleBtn = wrap.querySelector('#adminAuthToggle');
-        const escHandler = (e) => {
-          if(e.key==='Escape' && document.body.contains(wrap)) close(false);
-        };
-        function close(res){
-          document.removeEventListener('keydown', escHandler);
-          releaseModalScrollLock('admin-auth');
-          wrap.remove();
-          resolve(res);
-        }
+        function close(res){ wrap.remove(); resolve(res); }
         toggleBtn.addEventListener('click',()=>{
           if(inputEl.type==='password'){ inputEl.type='text'; toggleBtn.textContent='🙈'; }
           else { inputEl.type='password'; toggleBtn.textContent='👁️'; }
@@ -5395,7 +5315,7 @@
         cancelBtn.addEventListener('click',()=>close(false));
         wrap.querySelector('.admin-auth-backdrop').addEventListener('click',()=>close(false));
         inputEl.addEventListener('keydown',e=>{ if(e.key==='Enter') okBtn.click(); if(e.key==='Escape') close(false); });
-        document.addEventListener('keydown', escHandler);
+        document.addEventListener('keydown',function escHandler(e){ if(e.key==='Escape'){ document.removeEventListener('keydown',escHandler); if(document.body.contains(wrap)) close(false);} });
         setTimeout(()=>inputEl.focus(),50);
       });
     }
@@ -5455,17 +5375,10 @@
     function computeLiveTodayTotal(student){
       try {
         // 复用 calculateDayData 以保证口径统一（包括进行中会话裁剪窗口逻辑）
-        const dayData = calculateDayData(student.name, new Date());
-        return (dayData.in + dayData.out) || 0;
+        return (calculateDayData(student.name, new Date()).in + calculateDayData(student.name, new Date()).out) || 0;
       } catch(e){
         return getTodayTotalMinutes(student);
       }
-    }
-
-    const MAX_VISIBLE_CARD_REFRESH = 48;
-    function isCardInViewport(el, threshold = 80) {
-      const rect = el.getBoundingClientRect();
-      return rect.bottom >= -threshold && rect.top <= (window.innerHeight + threshold);
     }
 
     function refreshListCardTimes(){
@@ -5474,10 +5387,8 @@
       if(!grid) return;
       const cards = grid.querySelectorAll('.stu-card');
       if(!cards.length) return;
-      let refreshed = 0;
+      const now = Date.now();
       cards.forEach(card=>{
-        if (refreshed >= MAX_VISIBLE_CARD_REFRESH) return;
-        if (!isCardInViewport(card)) return;
         const name = card.getAttribute('data-name');
         if(!name) return;
         const student = appState.students.get(name);
@@ -5492,7 +5403,6 @@
           domMinsEl.style.animation = 'cardUpdate 0.6s ease';
           setTimeout(()=>{ domMinsEl.style.animation=''; }, 650);
         }
-        refreshed++;
       });
     }
 
@@ -5757,24 +5667,6 @@
       });
     }
 
-    function createStudentCardElement(studentCardData, category, index, isMobile) {
-      const div = document.createElement('div');
-      div.className = 'stu-card';
-      div.setAttribute('data-name', studentCardData.name);
-      div.setAttribute('data-category', category);
-      if (!isMobile) div.style.animationDelay = `${Math.min(index * 15, 180)}ms`;
-      div.addEventListener('click', () => openStudentDetail(studentCardData.name));
-      div.innerHTML = `
-        <div class="stu-line1">
-          <span class="stu-name">${studentCardData.name}</span>
-        </div>
-        <div class="stu-meta">${studentCardData.metaText || ''}</div>
-        <div class="stu-mins">${utils.formatDurationFull(Math.max(0, studentCardData.minutes))}</div>
-        <div class="stu-detail">今日总练习时长</div>
-      `;
-      return div;
-    }
-
     function renderStudentList(category) {
   // 防抖/去重：如果数据签名未变化则不重绘，避免返回详情页时多次触发导致闪烁
   if(!window.__studentListRender){ window.__studentListRender={ lastSig:null, lastCategory:null }; }
@@ -5811,8 +5703,8 @@
       // ✅ 修复：优先使用增量更新，保留滚动位置，避免全量 innerHTML 替换导致页面弹顶
       const categoryChanged = window.__studentListRender.lastCategory !== category;
       window.__studentListRender.lastCategory = category;
-      const existingCards = Array.from(grid.querySelectorAll('.stu-card'));
-      const existingCardMap = new Map(existingCards.map(card => [card.getAttribute('data-name'), card]));
+      const existingCards = grid.querySelectorAll('.stu-card');
+      const existingNames = new Set([...existingCards].map(c => c.getAttribute('data-name')));
       const newNames = new Set(items.map(s => s.name));
       const canIncrementalUpdate = !categoryChanged && existingCards.length > 0;
 
@@ -5827,10 +5719,9 @@
           }
         });
 
-        // 2. 更新或新增卡片，按 items 顺序重排（避免反复 querySelector）
-        const fragment = document.createDocumentFragment();
+        // 2. 更新或新增卡片，按 items 顺序排列
         items.forEach((s, index) => {
-          let card = existingCardMap.get(s.name);
+          let card = grid.querySelector(`.stu-card[data-name="${s.name}"]`);
           if (card) {
             // 已存在：只更新内容，不改 DOM 结构（保留滚动不抖动）
             const minsEl = card.querySelector('.stu-mins');
@@ -5838,40 +5729,54 @@
             const newMins = utils.formatDurationFull(Math.max(0, s.minutes));
             if (minsEl && minsEl.textContent !== newMins) minsEl.textContent = newMins;
             if (metaEl && metaEl.textContent !== (s.metaText || '')) metaEl.textContent = s.metaText || '';
-            card.setAttribute('data-category', category);
           } else {
-            card = createStudentCardElement(s, category, index, isMobile);
+            // 新增卡片
+            const div = document.createElement('div');
+            div.className = 'stu-card';
+            div.setAttribute('data-name', s.name);
+            div.setAttribute('data-category', category);
+            if (!isMobile) div.style.animationDelay = `${Math.min(index * 15, 180)}ms`;
+            div.setAttribute('onclick', `openStudentDetail('${s.name}')`);
+            div.innerHTML = `
+              <div class="stu-line1">
+                <span class="stu-name">${s.name}</span>
+              </div>
+              <div class="stu-meta">${s.metaText || ''}</div>
+              <div class="stu-mins">${utils.formatDurationFull(Math.max(0, s.minutes))}</div>
+              <div class="stu-detail">今日总练习时长</div>
+            `;
+            grid.appendChild(div);
           }
-          fragment.appendChild(card);
         });
-        grid.appendChild(fragment);
 
         // 恢复滚动位置
         const listEl = grid.closest('.list-view');
         if (listEl) listEl.scrollTop = savedScrollTop;
       } else {
         // 全量重建（切换分类或首次渲染）
-        const fragment = document.createDocumentFragment();
-        items.forEach((s, index) => {
-          fragment.appendChild(createStudentCardElement(s, category, index, isMobile));
-        });
-        scheduleDOM(()=>{
-          grid.innerHTML = '';
-          grid.appendChild(fragment);
-        }, 2);
+        const html = items.map((s, index) => `
+          <div class="stu-card" data-name="${s.name}" data-category="${category}" style="${isMobile ? '' : `animation-delay: ${Math.min(index * 15, 180)}ms;`}" onclick="openStudentDetail('${s.name}')">
+            <div class="stu-line1">
+              <span class="stu-name">${s.name}</span>
+            </div>
+            <div class="stu-meta">${s.metaText || ''}</div>
+            <div class="stu-mins">${utils.formatDurationFull(Math.max(0, s.minutes))}</div>
+            <div class="stu-detail">今日总练习时长</div>
+          </div>
+        `).join('');
+        scheduleDOM(()=>{ grid.innerHTML = html; }, 2);
       }
     }
 
     function updateViews() {
-      dbg('updateViews 被调用，当前 uiState.view:', uiState.view);
-      syncRootScrollLock();
+      console.log('updateViews 被调用，当前 uiState.view:', uiState.view);
       
       const home = document.getElementById('homeView');
       const list = document.getElementById('listView');
       const detail = document.getElementById('detailView');
   const ranking = document.getElementById('rankingView');
       
-      dbg('视图元素状态:', {
+      console.log('视图元素状态:', {
         home: home ? '存在' : '不存在',
         list: list ? '存在' : '不存在', 
         detail: detail ? '存在' : '不存在',
@@ -5974,7 +5879,6 @@
         }
       } else if (uiState.view === 'detail') {
         // 展开详情视图
-        const isTransitioningToDetail = !uiState._dataRefresh && uiState.previousView !== 'detail';
         home.hidden = true;
         if (ranking) {
           ranking.classList.remove('expanding');
@@ -5984,8 +5888,8 @@
         list.hidden = true;
         detail.hidden = false;
         detail.classList.add('active');
-        // 只有真正切换到详情页时才重置滚动，避免实时刷新过程中发生“强制跳顶”
-        if (isTransitioningToDetail) detail.scrollTop = 0;
+        // 重置滚动位置
+        detail.scrollTop = 0;
         renderStudentDetail(uiState.selectedStudent);
   startWeekChartAutoRefresh();
   startCurrentDurationUpdate();
@@ -6213,21 +6117,17 @@
       setupSearchFunction();
     }
 
-  // iOS 原生风格右滑返回手势（重构：先判定横向意图，再进入拖拽，避免干扰纵向滚动）
+  // iOS 原生风格右滑返回手势
   function setupSwipeGestures() {
-    const EDGE_ZONE = 18;
-    const ACTIVATE_THRESHOLD = 14;
-    const THRESHOLD = 0.38;
-    const VELOCITY_THRESHOLD = 0.4;
+    const EDGE_ZONE = 30;       // 触发区域：距左边缘 30px 内开始才算
+    const THRESHOLD = 0.38;     // 松手时完成返回的最小进度（38% 屏幕宽度）
+    const VELOCITY_THRESHOLD = 0.4; // 快速滑动时即使距离不足也触发（px/ms）
 
     let startX = 0, startY = 0, startTime = 0;
-    let tracking = false;
     let dragging = false;
-    let activeEl = null;
-    let activeTarget = null;
-    let swipeRaf = null;
-    let pendingDx = 0;
+    let activeEl = null; // 被平移的视图元素
 
+    // 获取当前可见的视图元素及其对应的"返回"操作
     function getSwipeTarget() {
       if (uiState.view === 'detail') {
         return {
@@ -6253,119 +6153,76 @@
       return null;
     }
 
-    function resetElementStyles(el) {
-      if (!el) return;
-      el.style.transition = '';
-      el.style.transform = '';
-      el.style.willChange = '';
-      el.style.boxShadow = '';
-    }
-
-    function cancelGesture() {
-      tracking = false;
-      dragging = false;
-      if (swipeRaf) {
-        cancelAnimationFrame(swipeRaf);
-        swipeRaf = null;
-      }
-      resetElementStyles(activeEl);
-      activeEl = null;
-      activeTarget = null;
-    }
-
     document.addEventListener('touchstart', (e) => {
-      if (e.touches.length !== 1) return;
       const touch = e.touches[0];
-      if (touch.clientX > EDGE_ZONE) return;
-      const tagName = e.target?.tagName || '';
-      if (tagName === 'INPUT' || tagName === 'TEXTAREA' || e.target?.isContentEditable) return;
+      if (touch.clientX > EDGE_ZONE) return; // 只响应左边缘
       const target = getSwipeTarget();
-      if (!target || !target.el) return;
-      tracking = true;
-      dragging = false;
-      activeTarget = target;
-      activeEl = target.el;
+      if (!target) return;
       startX = touch.clientX;
       startY = touch.clientY;
       startTime = Date.now();
-      pendingDx = 0;
+      dragging = true;
+      activeEl = target.el;
+      // 禁止过渡动画，改为跟手移动
+      activeEl.style.transition = 'none';
+      activeEl.style.willChange = 'transform';
     }, { passive: true });
 
     document.addEventListener('touchmove', (e) => {
-      if (!tracking || !activeEl) return;
+      if (!dragging || !activeEl) return;
       const touch = e.touches[0];
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
-
-      if (!dragging) {
-        // 纵向意图优先，立即退出手势，交给原生滚动
-        if (Math.abs(dy) > ACTIVATE_THRESHOLD && Math.abs(dy) > Math.abs(dx) * 1.2) {
-          cancelGesture();
-          return;
-        }
-        // 仅当横向意图明确时才接管
-        if (dx > ACTIVATE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.2) {
-          dragging = true;
-          activeEl.style.transition = 'none';
-          activeEl.style.willChange = 'transform';
-        } else {
-          return;
-        }
-      }
-
-      if (dx <= 0) return;
-      e.preventDefault();
-      pendingDx = dx;
-      if (!swipeRaf) {
-        swipeRaf = requestAnimationFrame(() => {
-          swipeRaf = null;
-          if (!activeEl) return;
-          const progress = Math.min(pendingDx / window.innerWidth, 1);
-          activeEl.style.transform = `translateX(${pendingDx}px)`;
-          activeEl.style.boxShadow = `${-4 * (1 - progress) * 20}px 0 40px rgba(0,0,0,${0.15 * (1 - progress)})`;
-        });
-      }
-    }, { passive: false });
-
-    function finishGesture(e) {
-      if (!tracking) return;
-      tracking = false;
-      if (!dragging || !activeEl || !activeTarget) {
-        cancelGesture();
+      // 垂直滑动优先：若纵向幅度明显大于横向，取消手势
+      if (Math.abs(dy) > Math.abs(dx) * 1.5 && dx < 20) {
+        dragging = false;
+        activeEl.style.transition = '';
+        activeEl.style.transform = '';
+        activeEl = null;
         return;
       }
-      if (swipeRaf) {
-        cancelAnimationFrame(swipeRaf);
-        swipeRaf = null;
-      }
+      if (dx <= 0) return;
+      const progress = Math.min(dx / window.innerWidth, 1);
+      // 跟手平移 + 轻微缩放（模拟 iOS 层次感）
+      activeEl.style.transform = `translateX(${dx}px)`;
+      activeEl.style.boxShadow = `${-4 * (1 - progress) * 20}px 0 40px rgba(0,0,0,${0.15 * (1 - progress)})`;
+    }, { passive: true });
 
-      const touch = (e.changedTouches || e.touches)?.[0];
-      const dx = touch ? touch.clientX - startX : pendingDx;
+    function finishGesture(e) {
+      if (!dragging || !activeEl) return;
+      dragging = false;
+      const touch = (e.changedTouches || e.touches)[0];
+      const dx = touch ? touch.clientX - startX : 0;
       const elapsed = Date.now() - startTime;
       const velocity = elapsed > 0 ? dx / elapsed : 0;
       const progress = dx / window.innerWidth;
       const shouldGoBack = progress >= THRESHOLD || velocity >= VELOCITY_THRESHOLD;
 
-      if (shouldGoBack) {
+      const target = getSwipeTarget();
+      if (shouldGoBack && target) {
+        // 完成动画后执行返回
+        activeEl.style.transition = 'transform 0.28s cubic-bezier(0.32,0.72,0,1)';
+        activeEl.style.transform = `translateX(${window.innerWidth}px)`;
         const el = activeEl;
-        const target = activeTarget;
-        el.style.transition = 'transform 0.28s cubic-bezier(0.32,0.72,0,1)';
-        el.style.transform = `translateX(${window.innerWidth}px)`;
         activeEl = null;
-        activeTarget = null;
-        dragging = false;
         setTimeout(() => {
-          resetElementStyles(el);
+          el.style.transition = '';
+          el.style.transform = '';
+          el.style.willChange = '';
+          el.style.boxShadow = '';
           target.back();
         }, 280);
       } else {
+        // 弹回原位
+        activeEl.style.transition = 'transform 0.3s cubic-bezier(0.32,0.72,0,1)';
+        activeEl.style.transform = 'translateX(0)';
         const el = activeEl;
         activeEl = null;
-        activeTarget = null;
-        dragging = false;
-        el.style.transition = 'transform 0.3s cubic-bezier(0.32,0.72,0,1)';
-        el.style.transform = 'translateX(0)';
-        setTimeout(() => resetElementStyles(el), 300);
+        setTimeout(() => {
+          el.style.transition = '';
+          el.style.willChange = '';
+          el.style.boxShadow = '';
+        }, 300);
       }
     }
 
@@ -6472,7 +6329,9 @@
       // 🚀 性能优化：延迟执行以显示点击反馈
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          dbg('从通用方式进入学生详情:', studentName);
+          console.log('从通用方式进入学生详情:', studentName);
+          console.log('当前视图:', uiState.view);
+          console.log('当前 rankingOrigin:', uiState.rankingOrigin);
           
           uiState.previousView = uiState.view;
           uiState.view = 'detail';
@@ -6481,10 +6340,10 @@
           // 如果不是从排行榜进入的，清除 rankingOrigin，避免影响返回逻辑
           if (uiState.view !== 'ranking') {
             uiState.rankingOrigin = null;
-            dbg('清除 rankingOrigin（非排行榜路径）');
+            console.log('清除 rankingOrigin（非排行榜路径）');
           }
           
-          dbg('更新后的 uiState:', uiState);
+          console.log('更新后的 uiState:', uiState);
           updateViews();
         });
       });
@@ -6538,13 +6397,6 @@
     function showStyledConfirm({title, studentName, score, reason, type = 'add'}) {
       return new Promise((resolve) => {
         const modal = document.createElement('div');
-        const releaseConfirmLock = () => releaseModalScrollLock('styled-confirm');
-        const closeConfirm = (result) => {
-          releaseConfirmLock();
-          modal.remove();
-          resolve(result);
-          document.removeEventListener('keydown', escHandler);
-        };
         const bgColor = type === 'add' ? '#059669' : type === 'deduct' ? '#dc2626' : '#6b7280';
         const icon = type === 'add' ? '➕' : type === 'deduct' ? '➖' : '🔄';
         const actionText = type === 'add' ? '加分' : type === 'deduct' ? '扣分' : '复原';
@@ -6591,20 +6443,23 @@
         `;
         
         document.body.appendChild(modal);
-        acquireModalScrollLock('styled-confirm');
         
         modal.querySelector('#confirmOk').onclick = () => {
-          closeConfirm(true);
+          modal.remove();
+          resolve(true);
         };
         
         modal.querySelector('#confirmCancel').onclick = () => {
-          closeConfirm(false);
+          modal.remove();
+          resolve(false);
         };
         
         // ESC 键取消
         const escHandler = (e) => {
           if (e.key === 'Escape') {
-            closeConfirm(false);
+            modal.remove();
+            resolve(false);
+            document.removeEventListener('keydown', escHandler);
           }
         };
         document.addEventListener('keydown', escHandler);
@@ -6790,7 +6645,6 @@
       
       document.head.appendChild(style);
       document.body.appendChild(dialog);
-      acquireModalScrollLock('admin-score-dialog');
       
       // 绑定UI元素
       const minusBtns = dialog.querySelectorAll('.minus-btn');
@@ -6907,7 +6761,6 @@
     function closeAdminDialog() {
       const dialog = document.querySelector('.admin-score-dialog');
       if (dialog) dialog.remove();
-      releaseModalScrollLock('admin-score-dialog');
     }
 
     async function saveAdminScoreAdjustment(studentName) {
@@ -8689,7 +8542,6 @@
       // 移除现有模态框
       const existing = document.querySelector('.score-detail-modal, .lb-modal');
       if (existing) {
-        releaseModalScrollLock('score-detail');
         existing.remove();
       }
       
@@ -8708,7 +8560,6 @@
       `;
       
       document.body.appendChild(modal);
-      acquireModalScrollLock('score-detail');
       
       // 显示动画
       requestAnimationFrame(() => {
@@ -8741,7 +8592,6 @@
           modal.remove();
         }, 200);
       }
-      releaseModalScrollLock('score-detail');
     }
 
     // ===== 排行规则详情（复刻旧系统样式与文案） =====
@@ -10175,17 +10025,9 @@
     
     // 时间轴专用WebSocket连接
     let timelineWebSocket = null;
-    let timelineHeartbeatTimer = null;
     let wsReconnectAttempts = 0;
     const WS_MAX_RECONNECT_ATTEMPTS = 3;
     const WS_RECONNECT_DELAY_BASE = 1000;
-
-    function clearTimelineHeartbeat() {
-      if (timelineHeartbeatTimer) {
-        clearInterval(timelineHeartbeatTimer);
-        timelineHeartbeatTimer = null;
-      }
-    }
     
     /**
      * 建立时间轴专用WebSocket连接
@@ -10223,8 +10065,7 @@
           });
           
           // 定期发送心跳
-          clearTimelineHeartbeat();
-          timelineHeartbeatTimer = setInterval(() => {
+          setInterval(() => {
             if (timelineWebSocket?.readyState === WebSocket.OPEN) {
               timelineWebSocket.send(JSON.stringify({
                 topic: 'phoenix',
@@ -10247,19 +10088,16 @@
         
         timelineWebSocket.onclose = () => {
           dbg('🌐 时间轴WebSocket连接已关闭');
-          clearTimelineHeartbeat();
           attemptWebSocketReconnect();
         };
         
         timelineWebSocket.onerror = (error) => {
           dbg('🌐 时间轴WebSocket错误:', error);
-          clearTimelineHeartbeat();
           attemptWebSocketReconnect();
         };
         
       } catch (error) {
         dbg('WebSocket创建失败:', error);
-        clearTimelineHeartbeat();
         attemptWebSocketReconnect();
       }
     }
@@ -10307,7 +10145,7 @@
       dbg('� 练琴记录实时更新:', { eventType, studentName, action });
       
       // 如果是当前查看的学生，立即更新时间轴
-      if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
+      if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
         setTimeout(() => {
           updateTimelineIncremental(studentName);
           showTimelineNotification(action, studentName);
@@ -10431,7 +10269,7 @@
       dbg(`🔮 乐观更新: ${studentName} ${action}${roomName ? ` (${roomName})` : ''}`);
       
       // 立即更新时间轴（如果是当前学生）
-      if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
+      if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
         // 临时添加到日志数据中
         const tempLogs = [...(appState.practiceLogs || []), predictedLog];
         const tempNormalized = [...(appState.practiceLogsNormalized || []), predictedLog];
@@ -10753,7 +10591,7 @@
       }
       
       // 如果当前在学生详情页，更新时间段显示
-      if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
+      if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
         updateStudentDetailSlotsOptimistic(studentName, weekday, operation, updateId);
       }
     }
@@ -10821,7 +10659,7 @@
       });
       
       // 如果当前在学生详情页，更新详情信息
-      if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
+      if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
         updateStudentDetailInfoOptimistic(studentName, changes, updateId);
       }
     }
@@ -10866,7 +10704,7 @@
         updateSlotsUI(studentName, changes);
         
         // 如果当前正在查看该学生详情，实时更新时间段卡片
-        if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
+        if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
           updateStudentDetailSlots(studentName, currentSlots);
         }
         
@@ -11048,7 +10886,7 @@
       if (changes.studentChanged && changes.occupantStudents.length > 0) {
         // 为每个学生更新详情页（如果正在查看该学生）
         changes.occupantStudents.forEach(studentName => {
-          if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
+          if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
             updateStudentDetailCurrentRoom(studentName, roomName);
           }
         });
@@ -11159,7 +10997,7 @@
       updateListStudentInfo(studentName, changes, studentData);
       
       // 如果当前正在查看该学生详情，更新详情页
-      if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
+      if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
         updateStudentDetailInfo(studentName, studentData);
       }
       
@@ -11354,7 +11192,7 @@
      * 更新学生详情页基础信息
      */
     function updateStudentDetailInfo(studentName, studentData) {
-      if (uiState.view !== 'detail' || uiState.selectedStudent !== studentName) return;
+      if (uiState.view !== 'detail' || uiState.currentStudent !== studentName) return;
       
       // 更新详情页的学生信息显示
       const detailContainer = document.getElementById('detailView');
@@ -11527,10 +11365,10 @@
 
     // 更新历史七天总结
     async function updateWeekHistory(studentName) {
-      dbg('updateWeekHistory called for:', studentName);
+      console.log('updateWeekHistory called for:', studentName);
       // 计算七天数据（优先使用后端备份）
       const weekData = await calculateWeekData(studentName);
-      dbg('weekData:', weekData);
+      console.log('weekData:', weekData);
 
       // 渲染条形图
       renderWeekChart(weekData.dailyData);
@@ -11635,16 +11473,16 @@
 
     // 渲染周练琴条形图
   function renderWeekChart(dailyData) {
-      dbg('renderWeekChart called with:', dailyData);
+      console.log('renderWeekChart called with:', dailyData);
       const container = document.getElementById('weekChart');
-      dbg('weekChart container:', container);
+      console.log('weekChart container:', container);
       if (!container) {
         console.error('weekChart container not found!');
         return;
       }
       
       const maxTotal = Math.max(...dailyData.map(d => (d.total ?? (d.inMinutes + d.outMinutes))), 1);
-      dbg('maxTotal:', maxTotal);
+      console.log('maxTotal:', maxTotal);
 
       let html = '';
       dailyData.forEach((day, idx) => {
@@ -13658,7 +13496,6 @@
       
       document.getElementById('modalContent').innerHTML = modalContent;
       document.getElementById('modalOverlay').style.display = 'flex';
-      acquireModalScrollLock('student-modal');
     }
 
     function generateCurrentStatusHTML(student) {
@@ -13683,7 +13520,6 @@
 
     function closeModal() {
       document.getElementById('modalOverlay').style.display = 'none';
-      releaseModalScrollLock('student-modal');
     }
 
     // ==== 事件监听器 ====
@@ -13771,10 +13607,6 @@
       
       scheduleHeartbeat() {
         if (!this.isMonitoring) return;
-        if (this.heartbeatInterval) {
-          clearInterval(this.heartbeatInterval);
-          this.heartbeatInterval = null;
-        }
         
         this.heartbeatInterval = setInterval(() => {
           this.performHeartbeat();
@@ -13787,24 +13619,28 @@
         const startTime = Date.now();
         
         try {
-          // 避免每次心跳动态注册 channel 事件，防止监听器堆积与内存增长
-          const channelState = realtimeChannel?.state || '';
-          const looksConnected = channelState === 'joined' || channelState === 'subscribed' || channelState === 'SUBSCRIBED';
-          if (!looksConnected) throw new Error(`channel_state=${channelState || 'unknown'}`);
-
-          // 每次心跳都做本地链路检查；每第3次额外做一次轻量 DB 探测
-          this._probeCount = (this._probeCount || 0) + 1;
-          if (this._probeCount % 3 === 0 && supabaseClient) {
-            const probePromise = supabaseClient
-              .from('rooms')
-              .select('name')
-              .limit(1);
-            const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error('probe_timeout')), 8000);
+          // 使用简单的presence事件作为心跳
+          const heartbeatPromise = new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              reject(new Error('心跳超时'));
+            }, 10000); // 10秒超时
+            
+            // 发送心跳并监听响应
+            realtimeChannel.track({ 
+              heartbeat: true, 
+              timestamp: startTime,
+              client_id: 'practice-tracker-' + Math.random().toString(36).substr(2, 9)
             });
-            const probeResult = await Promise.race([probePromise, timeoutPromise]);
-            if (probeResult?.error) throw probeResult.error;
-          }
+            
+            // 监听一次性的presence事件响应
+            const unsubscribe = realtimeChannel.on('presence', { event: 'sync' }, () => {
+              clearTimeout(timeout);
+              unsubscribe();
+              resolve();
+            });
+          });
+          
+          await heartbeatPromise;
           
           const pingTime = Date.now() - startTime;
           this.recordPing(pingTime);
@@ -13829,7 +13665,6 @@
         if (this.pingHistory.length > this.maxPingHistory) {
           this.pingHistory.shift();
         }
-        const prevFrequency = this.heartbeatFrequency;
         
         // 计算连接质量
         const avgPing = this.pingHistory.reduce((a, b) => a + b, 0) / this.pingHistory.length;
@@ -13843,9 +13678,6 @@
         } else {
           this.connectionQuality = 'poor';
           this.heartbeatFrequency = 15000; // 15秒，更频繁检测
-        }
-        if (prevFrequency !== this.heartbeatFrequency && this.isMonitoring) {
-          this.scheduleHeartbeat();
         }
       }
       
@@ -13909,15 +13741,6 @@
       
       if (isPageVisible) {
         dbg('页面重新可见，检查连接状态');
-        // 恢复与当前视图相关的定时任务
-        if (uiState.view === 'list') startListCardRefresh();
-        if (uiState.view === 'detail') {
-          startCurrentDurationUpdate();
-          startWeekChartAutoRefresh();
-          const tl = document.getElementById('todayTimeline');
-          if (tl) startLiveTimelineUpdate(tl);
-        }
-        if (realtimeChannel) healthMonitor.startMonitoring();
         // 页面重新可见时，适度延迟后检查连接
         setTimeout(() => {
           if (realtimeChannel && !isConnected) {
@@ -13927,12 +13750,6 @@
         }, 1000);
       } else {
         dbg('页面隐藏，降低更新频率');
-        // 页面隐藏时停止高频 UI 定时器，避免后台持续消耗
-        stopListCardRefresh();
-        stopCurrentDurationUpdate();
-        stopWeekChartAutoRefresh();
-        stopLiveTimelineUpdate();
-        healthMonitor.stopMonitoring();
       }
     });
     
@@ -14010,7 +13827,7 @@
           });
           
           // ✅ 集成深度优化：使用增量更新+WebSocket+乐观预测（带历史数据保护）
-          if (uiState.view === 'detail' && uiState.selectedStudent === studentName) {
+          if (uiState.view === 'detail' && uiState.currentStudent === studentName) {
             // 🛡️ 检查时间窗口，避免在敏感时间处理可能影响历史数据的更新
             const updateTime = new Date();
             const minutesSinceMidnight = updateTime.getHours() * 60 + updateTime.getMinutes();
@@ -16277,6 +16094,7 @@
     let _wlbData = {};          // 缓存后端返回数据 { 综合榜:[], 进步榜:[], ... }
     let _wlbActiveTab = '综合榜';
     let _wlbTimer = null;
+    let _wlbLastError = null;
     const _wlbExpanded = {};    // 每个榜单独立展开状态 { '综合榜': false, ... }
     const WLB_DEFAULT_N = { '综合榜': 10, '进步榜': 6, '稳定榜': 6, '守则榜': 6 };
 
@@ -16337,12 +16155,24 @@
       const rows = _wlbData[board] || [];
       const listEl = document.getElementById('wlbList');
       const subEl  = document.getElementById('wlbSubtitle');
+      const noticeEl = document.getElementById('wlbNotice');
       if (subEl) subEl.textContent = WLB_SUBTITLES[board] || '';
       if (!listEl) return;
       if (!rows.length) {
+        if (noticeEl) {
+          const day = new Date().getDay();
+          const isWeekStart = (day === 1 || day === 2);
+          noticeEl.style.display = 'block';
+          noticeEl.textContent = _wlbLastError
+            ? `本周排行榜加载失败：${_wlbLastError.message || _wlbLastError}。请检查 Supabase 连接或后端函数状态。`
+            : isWeekStart
+              ? '本周排行榜暂时为空。现在已经进入新的一周，需等本周第一批工作日练琴记录写入后，综合榜和三个分类榜才会自动出现。'
+              : '本周排行榜暂时为空。通常表示当前还没有满足上榜条件的本周数据，例如本周尚无有效工作日练琴记录、练琴次数不足或历史记录不足。';
+        }
         listEl.innerHTML = '<div class="wlb-empty">暂无足够数据</div>';
         return;
       }
+      if (noticeEl) noticeEl.style.display = 'none';
       const defN = WLB_DEFAULT_N[board] || 6;
       const total = rows.length;
       const expanded = !!_wlbExpanded[board];
@@ -16407,13 +16237,18 @@
       try {
         const { data, error } = await supabaseClient.rpc('get_weekly_leaderboards');
         if (error) throw error;
+        _wlbLastError = null;
         // 分组
         _wlbData = {};
         (data || []).forEach(r => {
           (_wlbData[r.board] || (_wlbData[r.board] = [])).push(r);
         });
         const hasAny = Object.values(_wlbData).some(arr => arr.length > 0);
-        if (!hasAny) { if (section) section.style.display = 'none'; return; }
+        if (!hasAny) {
+          if (section) section.style.display = 'block';
+          renderWlbBoard(_wlbActiveTab);
+          return;
+        }
         if (section) section.style.display = 'block';
         // 更新时间戳
         const upd = document.getElementById('wlbUpdated');
@@ -16424,7 +16259,10 @@
         renderWlbBoard(_wlbActiveTab);
       } catch(e) {
         console.warn('[wlb] 加载失败:', e);
-        if (section) section.style.display = 'none';
+        _wlbLastError = e;
+        _wlbData = {};
+        if (section) section.style.display = 'block';
+        renderWlbBoard(_wlbActiveTab);
       }
     }
 
@@ -16435,27 +16273,8 @@
     }
 
     // 当 practice_logs 有 clear 事件时，延迟 5 秒刷新（等 compute_student_score 完成）
-    let _wlbRefreshDebounceTimer = null;
     function scheduleWlbRefresh() {
-      if (_wlbRefreshDebounceTimer) clearTimeout(_wlbRefreshDebounceTimer);
-      _wlbRefreshDebounceTimer = setTimeout(() => {
-        _wlbRefreshDebounceTimer = null;
-        loadWeeklyLeaderboards();
-      }, 5000);
-    }
-
-    function openRankingInfoModal() {
-      const modal = document.getElementById('rankingInfoModal');
-      if (!modal) return;
-      modal.classList.add('active');
-      acquireModalScrollLock('ranking-info');
-    }
-
-    function closeRankingInfoModal() {
-      const modal = document.getElementById('rankingInfoModal');
-      if (!modal) return;
-      modal.classList.remove('active');
-      releaseModalScrollLock('ranking-info');
+      setTimeout(loadWeeklyLeaderboards, 5000);
     }
 
     // 音符币流水弹窗逻辑
@@ -16467,7 +16286,6 @@
       const listEl = document.getElementById('coinHistoryList');
       listEl.innerHTML = '<div class="coin-hi-empty">加载中...</div>';
       document.getElementById('coinHistoryModal').classList.add('show');
-      acquireModalScrollLock('coin-history');
 
       try {
         const { data, error } = await supabaseClient
@@ -16517,7 +16335,6 @@
 
     function closeCoinHistory() {
       document.getElementById('coinHistoryModal').classList.remove('show');
-      releaseModalScrollLock('coin-history');
     }
 
     function riSwitchTab(idx, btn) {
