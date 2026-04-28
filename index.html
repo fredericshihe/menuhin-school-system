@@ -2269,6 +2269,15 @@
     padding: 6px 16px 2px;
     min-height: 20px;
   }
+  .wlb-coin-reward-notice {
+    margin: 6px 16px 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: #c26a15;
+    letter-spacing: .01em;
+    line-height: 1.45;
+    text-align: left;
+  }
   .wlb-notice {
     margin: 0 16px 10px;
     padding: 10px 12px;
@@ -2707,6 +2716,9 @@
           <div class="wlb-tab" data-board="进步榜" role="button" tabindex="0">进步榜</div>
         </div>
         <div class="wlb-subtitle" id="wlbSubtitle"></div>
+        <div id="wlbCoinRewardNotice" class="wlb-coin-reward-notice" style="display:none;">
+          本周为特殊周不进行音符币发放
+        </div>
         <div class="wlb-notice" id="wlbNotice" style="display:none"></div>
         <div class="wlb-list" id="wlbList">
           <div class="wlb-loading"><span class="spin-sm"></span> 加载中…</div>
@@ -11104,6 +11116,8 @@
     let _wlbNeedsRefresh = false;
     let _wlbLastLoadedAt = 0;
     let _wlbDataSignature = '';
+    let _coinRewardSettingPromise = null;
+    let _coinRewardEnabled = true;
     const _wlbExpanded = {};    // 每个榜单独立展开状态 { '综合榜': false, ... }
     const WLB_DEFAULT_N = { '综合榜': 10, '进步榜': 6, '稳定榜': 6, '守则榜': 6 };
     const WLB_BOARD_ORDER = ['综合榜', '稳定榜', '守则榜', '进步榜'];
@@ -11159,6 +11173,40 @@
       if (!upd) return;
       const n = new Date(ts);
       upd.textContent = `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')} 更新`;
+    }
+
+    function applyCoinRewardSetting(enabled) {
+      _coinRewardEnabled = enabled !== false;
+      const noticeEl = document.getElementById('wlbCoinRewardNotice');
+      if (noticeEl) noticeEl.style.display = _coinRewardEnabled ? 'none' : 'block';
+    }
+
+    async function loadCoinRewardSetting(options = {}) {
+      const { force = false } = options;
+      if (!supabaseClient) return _coinRewardEnabled;
+      if (_coinRewardSettingPromise) return _coinRewardSettingPromise;
+      if (!force && _coinRewardEnabled === false) {
+        applyCoinRewardSetting(false);
+      }
+
+      _coinRewardSettingPromise = (async () => {
+        try {
+          const { data, error } = await supabaseClient.rpc('get_auto_reward_setting');
+          if (error) throw error;
+          const row = Array.isArray(data) && data.length ? data[0] : null;
+          const enabled = row ? row.enabled !== false : true;
+          applyCoinRewardSetting(enabled);
+          return enabled;
+        } catch (e) {
+          console.warn('[coin-reward-setting] 读取失败，保留当前文案:', e);
+          applyCoinRewardSetting(_coinRewardEnabled);
+          return _coinRewardEnabled;
+        } finally {
+          _coinRewardSettingPromise = null;
+        }
+      })();
+
+      return _coinRewardSettingPromise;
     }
 
     function bindWlbListDelegation(listEl) {
@@ -11332,6 +11380,7 @@
       const wasHidden = !!(section && section.style.display === 'none');
       _wlbLoadPromise = (async () => {
         _wlbNeedsRefresh = false;
+        void loadCoinRewardSetting({ force, reason });
         try {
           const { data, error } = await supabaseClient.rpc('get_weekly_leaderboards');
           if (error) throw error;
