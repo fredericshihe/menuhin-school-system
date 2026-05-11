@@ -763,47 +763,366 @@
 
     /* 状态卡片 */
     .status-card {
-      background: #ffffff;
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      overflow: hidden;
+      padding: 0 !important;
+      border-radius: 28px !important;
     }
 
   .status-card h3, .timeline-card h3, .history-card h3 { font-size: 18px; font-weight: 600; color: var(--text); margin: 0 0 16px 0; letter-spacing: -0.01em; }
 
-  .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--gap-md); }
+  .status-hero {
+    position: relative;
+    padding: 24px 24px 22px;
+    border-radius: 28px 28px 0 0;
+    background:
+      radial-gradient(circle at top right, rgba(255,255,255,.18), transparent 34%),
+      linear-gradient(135deg, var(--brand-600), var(--brand-700));
+    color: var(--text-on-accent);
+  }
 
-  .status-item { position: relative; text-align: center; padding: 16px 12px; background: var(--surface-muted); border-radius: var(--radius-md); border: 1px solid var(--border); transition: background .2s ease, border-color .2s ease, transform .15s ease; }
-  .status-item:hover { background: #eef2ff; border-color: #c7d2fe; transform: translateY(-1px); }
+  .status-hero.is-idle {
+    background:
+      radial-gradient(circle at top right, rgba(255,255,255,.12), transparent 32%),
+      linear-gradient(
+        135deg,
+        color-mix(in oklab, #64748b 84%, var(--surface-2)),
+        color-mix(in oklab, #334155 92%, var(--surface-2))
+      );
+    color: var(--text-on-accent);
+  }
 
-  .status-label { display: block; font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; letter-spacing: .02em; text-transform: uppercase; }
+  .status-hero::after {
+    content: "";
+    position: absolute;
+    inset: auto -40px -70px auto;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.08);
+    pointer-events: none;
+  }
 
-  .status-value { display: block; font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+  .status-hero-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+    position: relative;
+    z-index: 1;
+  }
 
-  .status-help-btn { 
-    position: absolute; 
-    top: 8px; 
-    right: 8px; 
-    width: 18px; 
-    height: 18px; 
-    border: none; 
-    background: var(--primary); 
-    color: white; 
-    border-radius: 50%; 
-    font-size: 11px; 
-    font-weight: 600; 
-    cursor: pointer; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    transition: all 0.2s ease; 
-    opacity: 0.7; 
+  .status-hero-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(255,255,255,.95);
+    letter-spacing: -.01em;
+  }
+
+  .status-live-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.2);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 0 rgba(255,255,255,.55);
+    animation: statusPulse 1.8s infinite;
+  }
+
+  .status-live-dot.offline {
+    animation: none;
+    opacity: .95;
+    background: rgba(255,255,255,.16);
+    border-color: rgba(255,255,255,.18);
+  }
+
+  .status-room-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 58%;
+    margin-left: auto;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.16);
+    border: 1px solid rgba(255,255,255,.18);
+    color: rgba(255,255,255,.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .status-room-pill-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .status-hero-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  .status-hero-caption {
+    font-size: 13px;
+    color: rgba(255,255,255,.78);
+    margin-bottom: 8px;
+    letter-spacing: .02em;
+  }
+
+  .status-hero.is-idle .status-hero-title,
+  .status-hero.is-idle .status-hero-caption,
+  .status-hero.is-idle .status-hero-meta,
+  .status-hero.is-idle .status-hero-duration-num {
+    color: rgba(255,255,255,.95);
+  }
+
+  .status-hero.is-idle .status-hero-caption,
+  .status-hero.is-idle .status-hero-meta,
+  .status-hero.is-idle .status-hero-duration-unit {
+    color: rgba(255,255,255,.72);
+    opacity: 1;
+  }
+
+  .status-hero.is-idle .status-room-pill {
+    background: rgba(255,255,255,.15);
+    border-color: rgba(255,255,255,.18);
+    color: rgba(255,255,255,.94);
+  }
+
+  .status-hero.is-idle .status-hero-duration {
+    opacity: .78;
+  }
+
+  .status-hero-duration {
+    font-size: clamp(40px, 7vw, 56px);
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: -.04em;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .status-hero-duration-num {
+    color: var(--text-on-accent);
+    display: inline-block;
+    min-width: .78em;
+    text-align: center;
+  }
+
+  .status-hero-duration-unit {
+    font-size: .32em;
+    font-weight: 600;
+    opacity: .78;
+    margin-bottom: .2em;
+    display: inline-block;
+    letter-spacing: 0;
+    transform: translateY(-1px);
+  }
+
+  .status-hero-meta {
+    margin-top: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: rgba(255,255,255,.8);
+  }
+
+  .status-body {
+    padding: 22px 24px 24px;
+    background: var(--surface-1);
+    border-radius: 0 0 28px 28px;
+  }
+
+  .status-section + .status-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .status-section-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .status-section-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-1);
+    letter-spacing: -.01em;
+  }
+
+  .status-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: var(--brand-600);
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 26px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--surface-0) 88%, transparent);
+    color: var(--text-2);
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .status-badge.success {
+    background: color-mix(in oklab, var(--success) 18%, var(--surface-1));
+    color: color-mix(in oklab, var(--success) 78%, var(--text-1));
+    border-color: color-mix(in oklab, var(--success) 35%, var(--border));
+  }
+
+  .status-badge.progress {
+    background: color-mix(in oklab, var(--brand-600) 12%, var(--surface-1));
+    color: var(--brand-600);
+    border-color: color-mix(in oklab, var(--brand-600) 30%, var(--border));
+  }
+
+  .status-badge.warn {
+    background: color-mix(in oklab, var(--warning) 16%, var(--surface-1));
+    color: color-mix(in oklab, var(--warning) 82%, var(--text-1));
+    border-color: color-mix(in oklab, var(--warning) 30%, var(--border));
+  }
+
+  .status-progress-track {
+    width: 100%;
+    height: 12px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--surface-0) 92%, var(--surface-1));
+    overflow: hidden;
+    border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  }
+
+  .status-progress-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: inherit;
+    transition: width .45s ease;
+  }
+
+  .status-progress-fill.daily {
+    background: linear-gradient(90deg, color-mix(in oklab, var(--success) 80%, white), var(--success));
+  }
+
+  .status-progress-fill.weekly {
+    background: linear-gradient(90deg, var(--brand-500), var(--brand-700));
+  }
+
+  .status-progress-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text-3);
+  }
+
+  .status-progress-meta strong {
+    color: var(--text-1);
+    font-weight: 700;
+  }
+
+  .status-progress-rate {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--brand-600);
+    line-height: 1;
+  }
+
+  .status-help-btn {
+    margin-left: 8px;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: color-mix(in oklab, var(--brand-600) 12%, var(--surface-1));
+    color: var(--brand-600);
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
   }
   
-  .status-help-btn:hover { 
-    opacity: 1; 
-    transform: scale(1.1); 
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); 
+  .status-help-btn:hover {
+    transform: scale(1.08);
+    background: var(--brand-600);
+    color: var(--text-on-accent);
+    box-shadow: 0 2px 8px color-mix(in oklab, var(--brand-600) 30%, transparent);
+  }
+
+  @keyframes statusPulse {
+    0% { box-shadow: 0 0 0 0 rgba(255,255,255,.55); }
+    70% { box-shadow: 0 0 0 10px rgba(255,255,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+  }
+
+  @media (max-width: 640px) {
+    .status-hero,
+    .status-body {
+      padding-left: 18px;
+      padding-right: 18px;
+    }
+
+    .status-hero-top {
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .status-room-pill {
+      max-width: 62%;
+      margin-left: auto;
+    }
+
+    .status-section-head,
+    .status-progress-meta {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .status-progress-rate {
+      font-size: 18px;
+    }
+
+    .status-hero-duration {
+      gap: 12px;
+    }
   }
 
     /* 时间轴卡片 */
@@ -3020,37 +3339,68 @@
           </div>
 
           <!-- 当前状态卡片 -->
-          <div class="status-card">
-            <h3>当前状态</h3>
-            <div class="status-grid">
-              <div class="status-item">
-                <span class="status-label">练琴开始时间</span>
-                <span class="status-value" id="currentStartTime">--</span>
+          <div class="status-card status-dashboard">
+            <div class="status-hero" id="statusHero">
+              <div class="status-hero-top">
+                <div class="status-hero-title">
+                  <span class="status-live-dot offline" id="practiceStateDot"></span>
+                  <span id="practiceStateText">当前空闲</span>
+                </div>
+                <div class="status-room-pill" id="currentRoom">
+                  <span>📍</span>
+                  <span class="status-room-pill-text">未登记琴房</span>
+                </div>
               </div>
-              <div class="status-item">
-                <span class="status-label">当前时长</span>
-                <span class="status-value" id="currentDuration">--</span>
+              <div class="status-hero-main">
+                <span class="status-hero-caption" id="statusHeroCaption"></span>
+                <div class="status-hero-duration" id="currentDuration">--</div>
+                <div class="status-hero-meta">
+                  <span>🕒</span>
+                  <span>开始于 <span id="currentStartTime">--</span></span>
+                </div>
               </div>
-              <div class="status-item">
-                <span class="status-label">当前琴房</span>
-                <span class="status-value" id="currentRoom">--</span>
+            </div>
+            <div class="status-body">
+              <div class="status-section">
+                <div class="status-section-head">
+                  <div class="status-section-title">
+                    <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="9"></circle>
+                      <path d="M12 7v5l3 3"></path>
+                    </svg>
+                    <span>今日进度</span>
+                  </div>
+                  <span class="status-badge" id="dailyProgressLabel">计算中</span>
+                </div>
+                <div class="status-progress-track">
+                  <div class="status-progress-fill daily" id="dailyProgressBar"></div>
+                </div>
+                <div class="status-progress-meta">
+                  <div>已练 <strong id="todayTotal">0小时0分钟</strong></div>
+                  <div>目标 <strong id="dailyTarget">--</strong></div>
+                </div>
               </div>
-              <div class="status-item">
-                <span class="status-label">当前日目标达成</span>
-                <span class="status-value" id="todayTotal">0小时0分钟</span>
-                <button class="status-help-btn" id="todayTotalHelpBtn" title="查看时间计算说明">?</button>
-              </div>
-              <div class="status-item">
-                <span class="status-label">练琴日目标</span>
-                <span class="status-value" id="dailyTarget">--</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">周目标</span>
-                <span class="status-value" id="weeklyTarget">--</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">当前周目标达成</span>
-                <span class="status-value" id="weeklyTargetAchieved">--</span>
+
+              <div class="status-section">
+                <div class="status-section-head">
+                  <div class="status-section-title">
+                    <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M8 2v4"></path>
+                      <path d="M16 2v4"></path>
+                      <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                      <path d="M3 10h18"></path>
+                    </svg>
+                    <span>本周进度</span>
+                  </div>
+                  <span class="status-progress-rate" id="weeklyProgressPercent">--</span>
+                </div>
+                <div class="status-progress-track">
+                  <div class="status-progress-fill weekly" id="weeklyProgressBar"></div>
+                </div>
+                <div class="status-progress-meta">
+                  <div>已练 <strong id="weeklyTargetAchieved">--</strong></div>
+                  <div>目标 <strong id="weeklyTarget">--</strong></div>
+                </div>
               </div>
             </div>
           </div>
@@ -3780,6 +4130,26 @@
       return d;
     }
 
+    function getLocalDayStartIso(baseDate = new Date()) {
+      const d = new Date(baseDate);
+      d.setHours(0, 0, 0, 0);
+      return d.toISOString();
+    }
+
+    function getBjtDateKey(dateLike) {
+      const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).formatToParts(d);
+      const year = parts.find(p => p.type === 'year')?.value;
+      const month = parts.find(p => p.type === 'month')?.value;
+      const day = parts.find(p => p.type === 'day')?.value;
+      return `${year}-${month}-${day}`;
+    }
+
     async function fetchRuleV2WeekTargetContext(studentName) {
       try {
         if (!supabaseClient) return null;
@@ -3799,40 +4169,105 @@
       }
     }
 
-    function getTodayTargetMinutes(studentName, date = new Date()) {
-      const weekday = utils.getWeekday(date);
-      const timeSlots = utils.getStudentTimeSlots(studentName);
-      const daySlots = Array.isArray(timeSlots[weekday]) ? timeSlots[weekday] : [];
-      return daySlots.reduce((sum, slot) => {
-        const startRaw = slot?.start_time ?? slot?.start;
-        const endRaw = slot?.end_time ?? slot?.end;
-        const start = typeof startRaw === 'number' ? startRaw : utils.parseTimeSlot(startRaw);
-        const end = typeof endRaw === 'number' ? endRaw : utils.parseTimeSlot(endRaw);
-        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return sum;
-        return sum + (end - start);
-      }, 0);
+    async function fetchBackendWProgressMetrics(studentName, baseDate = new Date()) {
+      try {
+        if (!supabaseClient) return null;
+        const normName = utils.normalizeStudentName(studentName);
+        const weekMonday = getCurrentWeekMondayDate(baseDate);
+        const todayStart = new Date(baseDate);
+        todayStart.setHours(0, 0, 0, 0);
+        const tomorrowStart = new Date(todayStart);
+        tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+        const [targetContext, sessionsRes] = await Promise.all([
+          fetchRuleV2WeekTargetContext(studentName),
+          supabaseClient
+            .from('practice_sessions')
+            .select('session_start, cleaned_duration')
+            .eq('student_name', normName)
+            .gte('session_start', getLocalDayStartIso(weekMonday))
+            .lt('session_start', tomorrowStart.toISOString())
+            .order('session_start', { ascending: true })
+        ]);
+
+        if (sessionsRes.error) {
+          console.warn('fetchBackendWProgressMetrics sessions error:', sessionsRes.error);
+          return null;
+        }
+
+        const isTodayWorkday = isWorkday(baseDate);
+        let weeklyAchievedMinutes = 0;
+        let todayAchievedMinutes = 0;
+        const todayStartMs = todayStart.getTime();
+        const tomorrowStartMs = tomorrowStart.getTime();
+
+        (sessionsRes.data || []).forEach(row => {
+          const mins = Number(row.cleaned_duration || 0);
+          if (!(mins > 0) || !row.session_start) return;
+          const sessionDate = new Date(row.session_start);
+          if (!isWorkday(sessionDate)) return;
+          weeklyAchievedMinutes += mins;
+          const ts = sessionDate.getTime();
+          if (isTodayWorkday && ts >= todayStartMs && ts < tomorrowStartMs) {
+            todayAchievedMinutes += mins;
+          }
+        });
+
+        const weeklyTargetMinutes = Number(targetContext?.final_target_week);
+        const dailyTargetMinutes = Number.isFinite(weeklyTargetMinutes) && weeklyTargetMinutes > 0
+          ? (weeklyTargetMinutes / 5)
+          : null;
+
+        return {
+          isTodayWorkday,
+          todayAchievedMinutes: isTodayWorkday ? todayAchievedMinutes : 0,
+          dailyTargetMinutes: isTodayWorkday ? dailyTargetMinutes : 0,
+          weeklyAchievedMinutes,
+          weeklyTargetMinutes,
+          targetContext
+        };
+      } catch (e) {
+        console.warn('fetchBackendWProgressMetrics exception:', e);
+        return null;
+      }
     }
 
-    async function getCurrentWeekAchievedMinutes(studentName, today = new Date()) {
-      const weekMonday = getCurrentWeekMondayDate(today);
-      let total = 0;
+    async function fetchBackendRecentDailyMinutes(studentName, endDate = new Date(), days = 7) {
       try {
-        const backendMap = await fetchDailyPracticeSummaries(studentName, weekMonday, today);
-        if (backendMap.size > 0) {
-          for (let d = new Date(weekMonday); d <= today; d.setDate(d.getDate() + 1)) {
-            total += Number(backendMap.get(utils.toIsoDate(d)) || 0);
-          }
-          return total;
-        }
-      } catch (e) {
-        console.warn('getCurrentWeekAchievedMinutes backend fallback:', e);
-      }
+        if (!supabaseClient) return new Map();
+        const normName = utils.normalizeStudentName(studentName);
+        const startDate = new Date(endDate);
+        startDate.setHours(0, 0, 0, 0);
+        startDate.setDate(startDate.getDate() - (days - 1));
+        const nextDay = new Date(endDate);
+        nextDay.setHours(0, 0, 0, 0);
+        nextDay.setDate(nextDay.getDate() + 1);
 
-      for (let d = new Date(weekMonday); d <= today; d.setDate(d.getDate() + 1)) {
-        const dayData = calculateDayData(studentName, new Date(d));
-        total += (Number(dayData.in) || 0) + (Number(dayData.out) || 0);
+        const { data, error } = await supabaseClient
+          .from('practice_sessions')
+          .select('session_start, cleaned_duration')
+          .eq('student_name', normName)
+          .gte('session_start', startDate.toISOString())
+          .lt('session_start', nextDay.toISOString())
+          .order('session_start', { ascending: true });
+
+        if (error) {
+          console.warn('fetchBackendRecentDailyMinutes error:', error);
+          return new Map();
+        }
+
+        const totals = new Map();
+        (data || []).forEach(row => {
+          const mins = Number(row.cleaned_duration || 0);
+          if (!(mins > 0) || !row.session_start) return;
+          const key = getBjtDateKey(row.session_start);
+          totals.set(key, (totals.get(key) || 0) + mins);
+        });
+        return totals;
+      } catch (e) {
+        console.warn('fetchBackendRecentDailyMinutes exception:', e);
+        return new Map();
       }
-      return total;
     }
 
     async function fetchDailyLeaderboardMap(date) {
@@ -4842,20 +5277,7 @@
         student.currentStartTime = null;
       }
       if(uiState.view==='detail' && uiState.selectedStudent===studentName){
-        const startEl=document.getElementById('currentStartTime');
-        const durEl=document.getElementById('currentDuration');
-        const roomEl=document.getElementById('currentRoom');
-        if(startEl) startEl.textContent = student.currentStartTime ? utils.formatTime(student.currentStartTime) : '--';
-        if(roomEl) roomEl.textContent = student.currentRoom || '--';
-        if(durEl){
-          if(student.currentStartTime){
-            const now=new Date();
-            const mins=Math.max(0,Math.round((now-student.currentStartTime)/60000));
-            durEl.textContent = utils.formatDuration(mins);
-          }else{
-            durEl.textContent='--';
-          }
-        }
+        updateCurrentStatus(student);
       }
     }catch(e){ console.warn('deriveCurrentSessionForStudent error', e); }
   }
@@ -6650,6 +7072,10 @@
       const weeklyTargetEl = document.getElementById('weeklyTarget');
       const weeklyTargetAchievedEl = document.getElementById('weeklyTargetAchieved');
       const todayTotalEl = document.getElementById('todayTotal');
+      const dailyProgressLabelEl = document.getElementById('dailyProgressLabel');
+      const weeklyProgressPercentEl = document.getElementById('weeklyProgressPercent');
+      const dailyProgressBarEl = document.getElementById('dailyProgressBar');
+      const weeklyProgressBarEl = document.getElementById('weeklyProgressBar');
       if (_isNewStudent) {
         if (rankValEl) rankValEl.textContent = '--';
         if (rankMetaEl) rankMetaEl.textContent = '加载中...';
@@ -6657,6 +7083,12 @@
         if (weeklyTargetEl) weeklyTargetEl.textContent = '--';
         if (weeklyTargetAchievedEl) weeklyTargetAchievedEl.textContent = '--';
         if (todayTotalEl) todayTotalEl.textContent = '0小时0分钟';
+        if (dailyTargetEl) delete dailyTargetEl.dataset.targetMinutes;
+        if (weeklyTargetEl) delete weeklyTargetEl.dataset.targetMinutes;
+        if (dailyProgressLabelEl) setStatusBadge(dailyProgressLabelEl, '计算中');
+        if (weeklyProgressPercentEl) weeklyProgressPercentEl.textContent = '--';
+        if (dailyProgressBarEl) dailyProgressBarEl.style.width = '0%';
+        if (weeklyProgressBarEl) weeklyProgressBarEl.style.width = '0%';
       }
       
       document.getElementById('studentGrade').textContent = meta.grade || '未知年级';
@@ -7054,41 +7486,211 @@
       }
     }
 
+    async function showWProgressExplanation(studentName) {
+      try {
+        const metrics = await fetchBackendWProgressMetrics(studentName, new Date());
+        const safeStudentName = escapeHtml(studentName);
+        if (!metrics) {
+          createScoreDetailModal(`
+            <div class="lb-section">
+              <div class="lb-card">
+                <h4>❌ W 进度说明加载失败</h4>
+                <p>暂时无法读取后端 W 分进度数据，请稍后再试。</p>
+              </div>
+            </div>
+          `, 'W 进度说明');
+          return;
+        }
+
+        const todayDone = utils.formatDurationHoursMinutes(metrics.todayAchievedMinutes || 0);
+        const dayTarget = Number.isFinite(Number(metrics.dailyTargetMinutes))
+          ? utils.formatDurationHoursMinutes(metrics.dailyTargetMinutes)
+          : '--';
+        const weekDone = utils.formatDurationHoursMinutes(metrics.weeklyAchievedMinutes || 0);
+        const weekTarget = Number.isFinite(Number(metrics.weeklyTargetMinutes))
+          ? utils.formatDurationHoursMinutes(metrics.weeklyTargetMinutes)
+          : '--';
+        const weekendNote = metrics.isTodayWorkday
+          ? '今天是工作日，今日进度计入 W 分。'
+          : '今天是周末，今日进度按 W 分规则不计入，周进度也只统计工作日 cleaned_duration。';
+
+        const content = `
+          <div class="lb-section">
+            <div class="lb-card lb-card--gradient" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);border:none;">
+              <div class="lb-kv"><strong>${safeStudentName}</strong><span>W 进度统一口径</span></div>
+              <div style="margin-top:8px;font-size:13px;opacity:.92;line-height:1.7;">
+                本卡片的“已练 / 目标”现在与后端 W 分使用同一套数据源和计算方法。
+              </div>
+            </div>
+          </div>
+
+          <div class="lb-section">
+            <div class="lb-card">
+              <h4>📘 当前口径</h4>
+              <div style="font-size:13px;line-height:1.8;color:var(--text-2);">
+                <p>• 已练：读取后端 <code>practice_sessions.cleaned_duration</code></p>
+                <p>• 周目标：读取后端 <code>get_rule_v2_week_target_context</code></p>
+                <p>• 日目标：按当前周目标 ÷ 5 折算</p>
+                <p>• 周末：不计入 W 分进度</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="lb-section">
+            <div class="lb-card">
+              <h4>📊 当前值</h4>
+              <div style="font-size:13px;line-height:1.85;color:var(--text-2);">
+                <p>• 今日已练：<strong>${todayDone}</strong></p>
+                <p>• 今日目标：<strong>${dayTarget}</strong></p>
+                <p>• 本周已练：<strong>${weekDone}</strong></p>
+                <p>• 本周目标：<strong>${weekTarget}</strong></p>
+                <p>• ${weekendNote}</p>
+              </div>
+            </div>
+          </div>
+        `;
+
+        createScoreDetailModal(content, 'W 进度说明');
+      } catch (e) {
+        console.error('显示 W 进度说明失败:', e);
+        createScoreDetailModal(`
+          <div class="lb-section">
+            <div class="lb-card">
+              <h4>❌ W 进度说明加载失败</h4>
+              <p>暂时无法读取后端 W 分进度数据，请稍后再试。</p>
+            </div>
+          </div>
+        `, 'W 进度说明');
+      }
+    }
+
+    function setStatusBadge(el, text, tone = '') {
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'status-badge';
+      if (tone) el.classList.add(tone);
+    }
+
+    function setProgressWidth(el, ratio) {
+      if (!el) return;
+      if (!Number.isFinite(ratio) || ratio <= 0) {
+        el.style.width = '0%';
+        return;
+      }
+      el.style.width = `${Math.min(100, Math.max(6, ratio * 100))}%`;
+    }
+
+    function renderDurationHero(minutes) {
+      const totalMinutes = Math.max(0, Math.round(Number(minutes) || 0));
+      const hours = Math.floor(totalMinutes / 60);
+      const mins = totalMinutes % 60;
+      return `<span class="status-hero-duration-num">${hours}</span><span class="status-hero-duration-unit">小时</span><span class="status-hero-duration-num">${mins}</span><span class="status-hero-duration-unit">分钟</span>`;
+    }
+
+    function renderDurationHeroPlaceholder() {
+      return `<span class="status-hero-duration-num">--</span><span class="status-hero-duration-unit">小时</span><span class="status-hero-duration-num">--</span><span class="status-hero-duration-unit">分钟</span>`;
+    }
+
+    function updateDailyProgressUI(achievedMinutes, targetMinutes) {
+      const badgeEl = document.getElementById('dailyProgressLabel');
+      const barEl = document.getElementById('dailyProgressBar');
+      if (!badgeEl || !barEl) return;
+
+      const achieved = Math.max(0, Math.round(Number(achievedMinutes) || 0));
+      const target = Number(targetMinutes);
+      if (!Number.isFinite(target) || target < 0) {
+        setStatusBadge(badgeEl, '计算中');
+        setProgressWidth(barEl, 0);
+        return;
+      }
+
+      if (target === 0) {
+        setStatusBadge(badgeEl, achieved > 0 ? '今日已练' : '未设目标', achieved > 0 ? 'progress' : '');
+        setProgressWidth(barEl, achieved > 0 ? 1 : 0);
+        return;
+      }
+
+      const ratio = achieved / target;
+      setProgressWidth(barEl, ratio);
+
+      if (achieved <= 0) {
+        setStatusBadge(badgeEl, '待开始');
+        return;
+      }
+      if (ratio >= 1.15) {
+        setStatusBadge(badgeEl, '超额完成', 'success');
+        return;
+      }
+      if (ratio >= 1) {
+        setStatusBadge(badgeEl, '已达成', 'success');
+        return;
+      }
+      if (ratio >= 0.6) {
+        setStatusBadge(badgeEl, `已完成 ${Math.round(ratio * 100)}%`, 'progress');
+        return;
+      }
+      setStatusBadge(badgeEl, `已完成 ${Math.round(ratio * 100)}%`, 'warn');
+    }
+
+    function updateWeeklyProgressUI(achievedMinutes, targetMinutes) {
+      const percentEl = document.getElementById('weeklyProgressPercent');
+      const barEl = document.getElementById('weeklyProgressBar');
+      if (!percentEl || !barEl) return;
+
+      const achieved = Math.max(0, Math.round(Number(achievedMinutes) || 0));
+      const target = Number(targetMinutes);
+      if (!Number.isFinite(target) || target <= 0) {
+        percentEl.textContent = achieved > 0 ? '进行中' : '--';
+        setProgressWidth(barEl, achieved > 0 ? 1 : 0);
+        return;
+      }
+
+      const ratio = achieved / target;
+      percentEl.textContent = `${Math.round(ratio * 100)}%`;
+      setProgressWidth(barEl, ratio);
+    }
+
     // 更新当前状态信息
     function updateCurrentStatus(student) {
       const currentStartTime = document.getElementById('currentStartTime');
       const currentDuration = document.getElementById('currentDuration');
-      const todayTotal = document.getElementById('todayTotal');
       const currentRoom = document.getElementById('currentRoom');
+      const currentRoomText = currentRoom?.querySelector('.status-room-pill-text');
+      const practiceStateText = document.getElementById('practiceStateText');
+      const practiceStateDot = document.getElementById('practiceStateDot');
+      const statusHero = document.getElementById('statusHero');
+      const statusHeroCaption = document.getElementById('statusHeroCaption');
+      const isPracticing = student.currentStatus !== 'offline' && !!student.currentStartTime;
 
       // 当前练琴开始时间
-      if (student.currentStatus !== 'offline' && student.currentStartTime) {
+      if (isPracticing) {
         currentStartTime.textContent = utils.formatTime(student.currentStartTime);
       } else {
-        currentStartTime.textContent = '--';
+        currentStartTime.textContent = '--:--';
       }
 
       // 当前时长（这次练琴的时长）
-      if (student.currentStatus !== 'offline' && student.currentStartTime) {
+      if (isPracticing) {
         const now = new Date();
         const currentSessionMinutes = Math.round((now - student.currentStartTime) / (1000 * 60));
-        currentDuration.textContent = utils.formatDuration(Math.max(0, currentSessionMinutes));
+        currentDuration.innerHTML = renderDurationHero(currentSessionMinutes);
       } else {
-        currentDuration.textContent = '--';
+        currentDuration.innerHTML = renderDurationHeroPlaceholder();
       }
 
-      // 当前琴房
-      currentRoom.textContent = student.currentRoom || '--';
+      if (practiceStateText) practiceStateText.textContent = isPracticing ? '正在练琴' : '当前空闲';
+      if (practiceStateDot) {
+        practiceStateDot.classList.toggle('offline', !isPracticing);
+        practiceStateDot.textContent = isPracticing ? '▶' : '☕';
+      }
+      if (statusHero) statusHero.classList.toggle('is-idle', !isPracticing);
+      if (statusHeroCaption) statusHeroCaption.textContent = isPracticing ? '本次已练时长' : '';
 
-      // 今日总计 - 使用与七天总结相同的计算逻辑
-      const todayData = calculateDayData(student.name, new Date());
-      const totalMinutes = todayData.in + todayData.out;
-      todayTotal.textContent = utils.formatDurationHoursMinutes(totalMinutes);
-      
-      // 绑定今日总计说明按钮
-      const todayTotalHelpBtn = document.getElementById('todayTotalHelpBtn');
-      if (todayTotalHelpBtn) {
-        todayTotalHelpBtn.onclick = () => showTodayTotalExplanation(student.name);
+      // 当前琴房
+      if (currentRoomText) {
+        currentRoomText.textContent = student.currentRoom ? `琴房 ${student.currentRoom}` : '未登记琴房';
+      } else if (currentRoom) {
+        currentRoom.textContent = student.currentRoom ? `琴房 ${student.currentRoom}` : '未登记琴房';
       }
     }
 
@@ -7102,27 +7704,65 @@
       if (activeStudent !== studentName) return;
 
       const today = new Date();
-      const dailyTargetMinutes = getTodayTargetMinutes(studentName, today);
-      dailyTargetEl.textContent = utils.formatDurationHoursMinutes(dailyTargetMinutes);
 
       try {
-        const [targetContext, currentWeekAchievedMinutes] = await Promise.all([
-          fetchRuleV2WeekTargetContext(studentName),
-          getCurrentWeekAchievedMinutes(studentName, today)
-        ]);
+        const metrics = await fetchBackendWProgressMetrics(studentName, today);
 
         if (renderStudentDetail._lastStudent !== studentName) return;
+        if (!metrics) {
+          dailyTargetEl.textContent = '--';
+          delete dailyTargetEl.dataset.targetMinutes;
+          weeklyTargetEl.textContent = '--';
+          delete weeklyTargetEl.dataset.targetMinutes;
+          weeklyTargetAchievedEl.textContent = '--';
+          updateDailyProgressUI(0, Number.NaN);
+          updateWeeklyProgressUI(0, Number.NaN);
+          return;
+        }
 
-        const weeklyTargetMinutes = Number(targetContext?.final_target_week);
+        const dailyTargetMinutes = Number(metrics.dailyTargetMinutes);
+        const todayAchievedMinutes = Number(metrics.todayAchievedMinutes || 0);
+        const currentWeekAchievedMinutes = Number(metrics.weeklyAchievedMinutes || 0);
+        const weeklyTargetMinutes = Number(metrics.weeklyTargetMinutes);
+
+        dailyTargetEl.textContent = Number.isFinite(dailyTargetMinutes)
+          ? utils.formatDurationHoursMinutes(dailyTargetMinutes)
+          : '--';
+        if (Number.isFinite(dailyTargetMinutes)) {
+          dailyTargetEl.dataset.targetMinutes = String(dailyTargetMinutes);
+        } else {
+          delete dailyTargetEl.dataset.targetMinutes;
+        }
+        todayTotal.textContent = utils.formatDurationHoursMinutes(todayAchievedMinutes);
+
+        if (!metrics.isTodayWorkday) {
+          setStatusBadge(document.getElementById('dailyProgressLabel'), '周末不计 W 分', 'progress');
+          setProgressWidth(document.getElementById('dailyProgressBar'), 0);
+        } else {
+          updateDailyProgressUI(todayAchievedMinutes, dailyTargetMinutes);
+        }
+
         weeklyTargetEl.textContent = Number.isFinite(weeklyTargetMinutes)
           ? utils.formatDurationHoursMinutes(weeklyTargetMinutes)
           : '--';
+        if (Number.isFinite(weeklyTargetMinutes)) {
+          weeklyTargetEl.dataset.targetMinutes = String(weeklyTargetMinutes);
+        } else {
+          delete weeklyTargetEl.dataset.targetMinutes;
+        }
         weeklyTargetAchievedEl.textContent = utils.formatDurationHoursMinutes(currentWeekAchievedMinutes);
+        updateWeeklyProgressUI(currentWeekAchievedMinutes, weeklyTargetMinutes);
       } catch (e) {
         console.error('更新目标进度失败:', e);
         if (renderStudentDetail._lastStudent !== studentName) return;
+        dailyTargetEl.textContent = '--';
+        delete dailyTargetEl.dataset.targetMinutes;
+        todayTotal.textContent = '0小时0分钟';
         weeklyTargetEl.textContent = '--';
+        delete weeklyTargetEl.dataset.targetMinutes;
         weeklyTargetAchievedEl.textContent = '--';
+        updateDailyProgressUI(0, Number.NaN);
+        updateWeeklyProgressUI(0, Number.NaN);
       }
     }
 
@@ -9167,33 +9807,22 @@
       let totalIn = 0;
       let totalOut = 0;
 
-      // 预拉取后端 7 天汇总（已按 08:00-21:30 和休息时间计算）
+      // 统一改为后端 practice_sessions.cleaned_duration 口径
       const days = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
         days.push(d);
       }
-      let backendMap = new Map();
-      try {
-        backendMap = await fetchDailyPracticeSummaries(studentName, days[0], days[days.length - 1]);
-      } catch (e) { console.warn('fetchDailyPracticeSummaries failed, fallback to local:', e); }
+      const backendMap = await fetchBackendRecentDailyMinutes(studentName, today, 7);
 
       for (let i = 6; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
-        const iso = utils.toIsoDate(date);
-
-        let total = backendMap.get(iso);
-        let inMin = 0, outMin = 0;
-        if (typeof total !== 'number') {
-          // 回退：本地按 21:30 有效窗口 + 休息时间计算
-          const dayData = calculateDayData(studentName, date);
-          inMin = dayData.in; outMin = dayData.out; total = inMin + outMin;
-        } else {
-          // 后端已提供总分钟（不区分 in/out），按 out 存储以兼容现有渲染
-          inMin = 0; outMin = total;
-        }
+        const iso = getBjtDateKey(date);
+        const total = Number(backendMap.get(iso) || 0);
+        const inMin = 0;
+        const outMin = total;
 
         dailyData.push({
           date,
@@ -9346,12 +9975,12 @@
             if(sameDay){
               // ✅ 实时计算并显示当前练琴会话时长
               const currentSessionMinutes = Math.round((now - student.currentStartTime) / (1000 * 60));
-              currentDurationEl.textContent = utils.formatDuration(Math.max(0, currentSessionMinutes));
+              currentDurationEl.innerHTML = renderDurationHero(currentSessionMinutes);
             }
             // 注意：状态管理由 analyzeStudentData 负责，这里只更新时长显示
           } else if(student && student.currentStatus === 'offline') {
             const currentDurationEl = document.getElementById('currentDuration');
-            if(currentDurationEl) currentDurationEl.textContent='--';
+            if(currentDurationEl) currentDurationEl.innerHTML = renderDurationHeroPlaceholder();
           }
         }
       }, 30 * 1000); // ✅ 每30秒更新一次，平衡精度与性能
