@@ -7564,6 +7564,8 @@
       }
     }
 
+    const liveProgressCache = new Map();
+
     function setStatusBadge(el, text, tone = '') {
       if (!el) return;
       el.textContent = text;
@@ -7650,6 +7652,60 @@
       setProgressWidth(barEl, ratio);
     }
 
+    function getLiveSessionOverlayMinutes(student, now = new Date()) {
+      if (!student || student.currentStatus === 'offline' || !student.currentStartTime) {
+        return { todayOverlayMinutes: 0, weeklyOverlayMinutes: 0 };
+      }
+
+      const start = new Date(student.currentStartTime);
+      if (!(start instanceof Date) || Number.isNaN(start.getTime()) || start > now) {
+        return { todayOverlayMinutes: 0, weeklyOverlayMinutes: 0 };
+      }
+
+      const liveMinutes = Math.max(0, Math.round((now - start) / 60000));
+      if (liveMinutes <= 0) {
+        return { todayOverlayMinutes: 0, weeklyOverlayMinutes: 0 };
+      }
+
+      const sameDay = start.getFullYear() === now.getFullYear()
+        && start.getMonth() === now.getMonth()
+        && start.getDate() === now.getDate();
+      const sameWeek = getCurrentWeekMondayDate(start).getTime() === getCurrentWeekMondayDate(now).getTime();
+      const weekday = isWorkday(start);
+
+      return {
+        todayOverlayMinutes: sameDay && weekday ? liveMinutes : 0,
+        weeklyOverlayMinutes: sameWeek && weekday ? liveMinutes : 0
+      };
+    }
+
+    function applyLiveProgressMetrics(studentName) {
+      const cache = liveProgressCache.get(studentName);
+      const dailyTargetEl = document.getElementById('dailyTarget');
+      const weeklyTargetEl = document.getElementById('weeklyTarget');
+      const weeklyTargetAchievedEl = document.getElementById('weeklyTargetAchieved');
+      const todayTotalEl = document.getElementById('todayTotal');
+      if (!cache || !dailyTargetEl || !weeklyTargetEl || !weeklyTargetAchievedEl || !todayTotalEl) return;
+      if (renderStudentDetail._lastStudent !== studentName) return;
+
+      const student = appState.students.get(studentName);
+      const overlay = getLiveSessionOverlayMinutes(student, new Date());
+      const todayAchievedMinutes = Math.max(0, Math.round((cache.todayBaseMinutes || 0) + overlay.todayOverlayMinutes));
+      const weeklyAchievedMinutes = Math.max(0, Math.round((cache.weeklyBaseMinutes || 0) + overlay.weeklyOverlayMinutes));
+
+      todayTotalEl.textContent = utils.formatDurationHoursMinutes(todayAchievedMinutes);
+      weeklyTargetAchievedEl.textContent = utils.formatDurationHoursMinutes(weeklyAchievedMinutes);
+
+      if (!cache.isTodayWorkday) {
+        setStatusBadge(document.getElementById('dailyProgressLabel'), '周末不计 W 分', 'progress');
+        setProgressWidth(document.getElementById('dailyProgressBar'), 0);
+      } else {
+        updateDailyProgressUI(todayAchievedMinutes, cache.dailyTargetMinutes);
+      }
+
+      updateWeeklyProgressUI(weeklyAchievedMinutes, cache.weeklyTargetMinutes);
+    }
+
     // 更新当前状态信息
     function updateCurrentStatus(student) {
       const currentStartTime = document.getElementById('currentStartTime');
@@ -7698,7 +7754,8 @@
       const dailyTargetEl = document.getElementById('dailyTarget');
       const weeklyTargetEl = document.getElementById('weeklyTarget');
       const weeklyTargetAchievedEl = document.getElementById('weeklyTargetAchieved');
-      if (!dailyTargetEl || !weeklyTargetEl || !weeklyTargetAchievedEl) return;
+      const todayTotalEl = document.getElementById('todayTotal');
+      if (!dailyTargetEl || !weeklyTargetEl || !weeklyTargetAchievedEl || !todayTotalEl) return;
 
       const activeStudent = renderStudentDetail._lastStudent;
       if (activeStudent !== studentName) return;
@@ -7710,8 +7767,10 @@
 
         if (renderStudentDetail._lastStudent !== studentName) return;
         if (!metrics) {
+          liveProgressCache.delete(studentName);
           dailyTargetEl.textContent = '--';
           delete dailyTargetEl.dataset.targetMinutes;
+          todayTotalEl.textContent = '0小时0分钟';
           weeklyTargetEl.textContent = '--';
           delete weeklyTargetEl.dataset.targetMinutes;
           weeklyTargetAchievedEl.textContent = '--';
@@ -7733,14 +7792,6 @@
         } else {
           delete dailyTargetEl.dataset.targetMinutes;
         }
-        todayTotal.textContent = utils.formatDurationHoursMinutes(todayAchievedMinutes);
-
-        if (!metrics.isTodayWorkday) {
-          setStatusBadge(document.getElementById('dailyProgressLabel'), '周末不计 W 分', 'progress');
-          setProgressWidth(document.getElementById('dailyProgressBar'), 0);
-        } else {
-          updateDailyProgressUI(todayAchievedMinutes, dailyTargetMinutes);
-        }
 
         weeklyTargetEl.textContent = Number.isFinite(weeklyTargetMinutes)
           ? utils.formatDurationHoursMinutes(weeklyTargetMinutes)
@@ -7750,14 +7801,21 @@
         } else {
           delete weeklyTargetEl.dataset.targetMinutes;
         }
-        weeklyTargetAchievedEl.textContent = utils.formatDurationHoursMinutes(currentWeekAchievedMinutes);
-        updateWeeklyProgressUI(currentWeekAchievedMinutes, weeklyTargetMinutes);
+        liveProgressCache.set(studentName, {
+          isTodayWorkday: !!metrics.isTodayWorkday,
+          todayBaseMinutes: todayAchievedMinutes,
+          weeklyBaseMinutes: currentWeekAchievedMinutes,
+          dailyTargetMinutes,
+          weeklyTargetMinutes
+        });
+        applyLiveProgressMetrics(studentName);
       } catch (e) {
         console.error('更新目标进度失败:', e);
         if (renderStudentDetail._lastStudent !== studentName) return;
+        liveProgressCache.delete(studentName);
         dailyTargetEl.textContent = '--';
         delete dailyTargetEl.dataset.targetMinutes;
-        todayTotal.textContent = '0小时0分钟';
+        todayTotalEl.textContent = '0小时0分钟';
         weeklyTargetEl.textContent = '--';
         delete weeklyTargetEl.dataset.targetMinutes;
         weeklyTargetAchievedEl.textContent = '--';
@@ -9977,10 +10035,11 @@
               const currentSessionMinutes = Math.round((now - student.currentStartTime) / (1000 * 60));
               currentDurationEl.innerHTML = renderDurationHero(currentSessionMinutes);
             }
-            // 注意：状态管理由 analyzeStudentData 负责，这里只更新时长显示
+            applyLiveProgressMetrics(uiState.selectedStudent);
           } else if(student && student.currentStatus === 'offline') {
             const currentDurationEl = document.getElementById('currentDuration');
             if(currentDurationEl) currentDurationEl.innerHTML = renderDurationHeroPlaceholder();
+            applyLiveProgressMetrics(uiState.selectedStudent);
           }
         }
       }, 30 * 1000); // ✅ 每30秒更新一次，平衡精度与性能
