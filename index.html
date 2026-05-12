@@ -7190,14 +7190,13 @@
             const text = formatAiAnalysisHtml(analysis.analysis_text);
             if (aiContent) aiContent.innerHTML = text;
             if (aiDate) {
-              const d = new Date(analysis.generated_at);
-              aiDate.textContent = `${d.getMonth()+1}月${d.getDate()}日 生成`;
+              aiDate.textContent = formatAiGeneratedAt(analysis.generated_at);
             }
           } else if (aiCard) {
             aiCard.style.display = 'block';
             aiCard.dataset.state = 'empty';
             if (aiContent) {
-              aiContent.innerHTML = '<span style="color:#9ca3af;font-size:13px;">暂无 AI 分析记录，每日晚上 6 点自动生成，或在管理员界面手动触发。</span>';
+              aiContent.innerHTML = '<span style="color:#9ca3af;font-size:13px;">暂无 AI 分析记录，系统会在工作日上午 10:00 自动更新综合榜前 50 名，或在管理员界面手动触发。</span>';
             }
             if (aiDate) aiDate.textContent = '';
           }
@@ -11966,6 +11965,16 @@
         console.warn('fetchAnalysisCache error:', e);
         return null;
       }
+    }
+
+    function formatAiGeneratedAt(value) {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return '';
+      return `${d.getMonth() + 1}月${d.getDate()}日 ${d.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })} 生成`;
     }
 
     async function fetchStudentScore(name) {
