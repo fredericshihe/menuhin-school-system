@@ -6370,17 +6370,20 @@
         }
       } else if (uiState.view === 'detail') {
         // 展开详情视图
+        const isTransitioningToDetail = !uiState._dataRefresh && uiState.previousView !== 'detail';
         home.hidden = true;
         list.classList.remove('expanding');
         list.hidden = true;
         detail.hidden = false;
         detail.classList.add('active');
-        // 重置滚动位置
-        detail.scrollTop = 0;
+        // 只有真正切换进详情页时才回到顶部，数据刷新时保留当前阅读位置
+        if (isTransitioningToDetail) {
+          detail.scrollTop = 0;
+          startWeekChartAutoRefresh();
+          startCurrentDurationUpdate();
+          stopListCardRefresh(); // 离开列表
+        }
         renderStudentDetail(uiState.selectedStudent);
-  startWeekChartAutoRefresh();
-  startCurrentDurationUpdate();
-  stopListCardRefresh(); // 离开列表
       }
       syncRootScrollLock();
     }
