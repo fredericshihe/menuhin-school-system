@@ -4143,6 +4143,16 @@
       return Math.max(0, 6 - day);
     }
 
+    function computeDynamicDailyTargetMinutes(weeklyTargetMinutes, weeklyAchievedMinutes, baseDate = new Date()) {
+      const weeklyTarget = Number(weeklyTargetMinutes);
+      const weeklyAchieved = Math.max(0, Math.round(Number(weeklyAchievedMinutes) || 0));
+      if (!Number.isFinite(weeklyTarget)) return null;
+      const remainingWorkdays = isWorkday(baseDate) ? getRemainingWorkdaysInclusive(baseDate) : 0;
+      const remainingWeekTargetMinutes = Math.max(0, weeklyTarget - weeklyAchieved);
+      if (remainingWorkdays <= 0) return 0;
+      return remainingWeekTargetMinutes / remainingWorkdays;
+    }
+
     function getBjtDateKey(dateLike) {
       const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
       const parts = new Intl.DateTimeFormat('en-CA', {
@@ -4225,9 +4235,7 @@
         const remainingWeekTargetMinutes = Number.isFinite(weeklyTargetMinutes)
           ? Math.max(0, weeklyTargetMinutes - weeklyAchievedMinutes)
           : null;
-        const dailyTargetMinutes = Number.isFinite(remainingWeekTargetMinutes)
-          ? (remainingWorkdays > 0 ? (remainingWeekTargetMinutes / remainingWorkdays) : 0)
-          : null;
+        const dailyTargetMinutes = computeDynamicDailyTargetMinutes(weeklyTargetMinutes, weeklyAchievedMinutes, baseDate);
 
         return {
           isTodayWorkday,
@@ -7712,15 +7720,24 @@
       const overlay = getLiveSessionOverlayMinutes(student, new Date());
       const todayAchievedMinutes = Math.max(0, Math.round((cache.todayBaseMinutes || 0) + overlay.todayOverlayMinutes));
       const weeklyAchievedMinutes = Math.max(0, Math.round((cache.weeklyBaseMinutes || 0) + overlay.weeklyOverlayMinutes));
+      const liveDailyTargetMinutes = computeDynamicDailyTargetMinutes(cache.weeklyTargetMinutes, weeklyAchievedMinutes, new Date());
 
       todayTotalEl.textContent = utils.formatDurationHoursMinutes(todayAchievedMinutes);
       weeklyTargetAchievedEl.textContent = utils.formatDurationHoursMinutes(weeklyAchievedMinutes);
+      dailyTargetEl.textContent = Number.isFinite(liveDailyTargetMinutes)
+        ? utils.formatDurationHoursMinutes(liveDailyTargetMinutes)
+        : '--';
+      if (Number.isFinite(liveDailyTargetMinutes)) {
+        dailyTargetEl.dataset.targetMinutes = String(liveDailyTargetMinutes);
+      } else {
+        delete dailyTargetEl.dataset.targetMinutes;
+      }
 
       if (!cache.isTodayWorkday) {
         setStatusBadge(document.getElementById('dailyProgressLabel'), '周末不计 W 分', 'progress');
         setProgressWidth(document.getElementById('dailyProgressBar'), 0);
       } else {
-        updateDailyProgressUI(todayAchievedMinutes, cache.dailyTargetMinutes, isPracticing);
+        updateDailyProgressUI(todayAchievedMinutes, liveDailyTargetMinutes, isPracticing);
       }
 
       updateWeeklyProgressUI(weeklyAchievedMinutes, cache.weeklyTargetMinutes);
