@@ -4235,7 +4235,8 @@
         const remainingWeekTargetMinutes = Number.isFinite(weeklyTargetMinutes)
           ? Math.max(0, weeklyTargetMinutes - weeklyAchievedMinutes)
           : null;
-        const dailyTargetMinutes = computeDynamicDailyTargetMinutes(weeklyTargetMinutes, weeklyAchievedMinutes, baseDate);
+        const weeklyAchievedBeforeToday = Math.max(0, weeklyAchievedMinutes - todayAchievedMinutes);
+        const dailyTargetMinutes = computeDynamicDailyTargetMinutes(weeklyTargetMinutes, weeklyAchievedBeforeToday, baseDate);
 
         return {
           isTodayWorkday,
@@ -7620,22 +7621,31 @@
       return `<span class="status-hero-duration-num">--</span><span class="status-hero-duration-unit">小时</span><span class="status-hero-duration-num">--</span><span class="status-hero-duration-unit">分钟</span>`;
     }
 
-    function updateDailyProgressUI(achievedMinutes, targetMinutes, isPracticing = false) {
+    function updateDailyProgressUI(achievedMinutes, targetMinutes, isPracticing = false, weeklyAchievedMinutes = null, weeklyTargetMinutes = null) {
       const badgeEl = document.getElementById('dailyProgressLabel');
       const barEl = document.getElementById('dailyProgressBar');
       if (!badgeEl || !barEl) return;
 
       const achieved = Math.max(0, Math.round(Number(achievedMinutes) || 0));
       const target = Number(targetMinutes);
+      const weeklyAchieved = Math.max(0, Math.round(Number(weeklyAchievedMinutes) || 0));
+      const weeklyTarget = Number(weeklyTargetMinutes);
+      const weeklyCompleted = Number.isFinite(weeklyTarget) && weeklyTarget > 0 && weeklyAchieved >= weeklyTarget;
       if (!Number.isFinite(target) || target < 0) {
         setStatusBadge(badgeEl, '计算中');
         setProgressWidth(barEl, 0);
         return;
       }
 
-      if (target === 0) {
+      if (weeklyCompleted) {
         setStatusBadge(badgeEl, isPracticing ? '超额完成中' : '超额完成', 'success');
         setProgressWidth(barEl, 1);
+        return;
+      }
+
+      if (target === 0) {
+        setStatusBadge(badgeEl, achieved > 0 ? '今日已练' : '待开始', achieved > 0 ? 'progress' : '');
+        setProgressWidth(barEl, achieved > 0 ? 1 : 0);
         return;
       }
 
@@ -7720,15 +7730,14 @@
       const overlay = getLiveSessionOverlayMinutes(student, new Date());
       const todayAchievedMinutes = Math.max(0, Math.round((cache.todayBaseMinutes || 0) + overlay.todayOverlayMinutes));
       const weeklyAchievedMinutes = Math.max(0, Math.round((cache.weeklyBaseMinutes || 0) + overlay.weeklyOverlayMinutes));
-      const liveDailyTargetMinutes = computeDynamicDailyTargetMinutes(cache.weeklyTargetMinutes, weeklyAchievedMinutes, new Date());
 
       todayTotalEl.textContent = utils.formatDurationHoursMinutes(todayAchievedMinutes);
       weeklyTargetAchievedEl.textContent = utils.formatDurationHoursMinutes(weeklyAchievedMinutes);
-      dailyTargetEl.textContent = Number.isFinite(liveDailyTargetMinutes)
-        ? utils.formatDurationHoursMinutes(liveDailyTargetMinutes)
+      dailyTargetEl.textContent = Number.isFinite(cache.dailyTargetMinutes)
+        ? utils.formatDurationHoursMinutes(cache.dailyTargetMinutes)
         : '--';
-      if (Number.isFinite(liveDailyTargetMinutes)) {
-        dailyTargetEl.dataset.targetMinutes = String(liveDailyTargetMinutes);
+      if (Number.isFinite(cache.dailyTargetMinutes)) {
+        dailyTargetEl.dataset.targetMinutes = String(cache.dailyTargetMinutes);
       } else {
         delete dailyTargetEl.dataset.targetMinutes;
       }
@@ -7737,7 +7746,7 @@
         setStatusBadge(document.getElementById('dailyProgressLabel'), '周末不计 W 分', 'progress');
         setProgressWidth(document.getElementById('dailyProgressBar'), 0);
       } else {
-        updateDailyProgressUI(todayAchievedMinutes, liveDailyTargetMinutes, isPracticing);
+        updateDailyProgressUI(todayAchievedMinutes, cache.dailyTargetMinutes, isPracticing, weeklyAchievedMinutes, cache.weeklyTargetMinutes);
       }
 
       updateWeeklyProgressUI(weeklyAchievedMinutes, cache.weeklyTargetMinutes);
