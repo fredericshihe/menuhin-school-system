@@ -4136,6 +4136,13 @@
       return d.toISOString();
     }
 
+    function getRemainingWorkdaysInclusive(baseDate = new Date()) {
+      const d = new Date(baseDate);
+      const day = d.getDay();
+      if (day === 0 || day === 6) return 0;
+      return Math.max(0, 6 - day);
+    }
+
     function getBjtDateKey(dateLike) {
       const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
       const parts = new Intl.DateTimeFormat('en-CA', {
@@ -4214,8 +4221,12 @@
         });
 
         const weeklyTargetMinutes = Number(targetContext?.final_target_week);
-        const dailyTargetMinutes = Number.isFinite(weeklyTargetMinutes) && weeklyTargetMinutes > 0
-          ? (weeklyTargetMinutes / 5)
+        const remainingWorkdays = isTodayWorkday ? getRemainingWorkdaysInclusive(baseDate) : 0;
+        const remainingWeekTargetMinutes = Number.isFinite(weeklyTargetMinutes)
+          ? Math.max(0, weeklyTargetMinutes - weeklyAchievedMinutes)
+          : null;
+        const dailyTargetMinutes = Number.isFinite(remainingWeekTargetMinutes)
+          ? (remainingWorkdays > 0 ? (remainingWeekTargetMinutes / remainingWorkdays) : 0)
           : null;
 
         return {
@@ -4224,6 +4235,8 @@
           dailyTargetMinutes: isTodayWorkday ? dailyTargetMinutes : 0,
           weeklyAchievedMinutes,
           weeklyTargetMinutes,
+          remainingWeekTargetMinutes,
+          remainingWorkdays,
           targetContext
         };
       } catch (e) {
@@ -7512,6 +7525,9 @@
         const weekTarget = Number.isFinite(Number(metrics.weeklyTargetMinutes))
           ? utils.formatDurationHoursMinutes(metrics.weeklyTargetMinutes)
           : '--';
+        const remainingTarget = Number.isFinite(Number(metrics.remainingWeekTargetMinutes))
+          ? utils.formatDurationHoursMinutes(metrics.remainingWeekTargetMinutes)
+          : '--';
         const weekendNote = metrics.isTodayWorkday
           ? '今天是工作日，今日进度计入 W 分。'
           : '今天是周末，今日进度按 W 分规则不计入，周进度也只统计工作日 cleaned_duration。';
@@ -7532,7 +7548,7 @@
               <div style="font-size:13px;line-height:1.8;color:var(--text-2);">
                 <p>• 已练：读取后端 <code>practice_sessions.cleaned_duration</code></p>
                 <p>• 周目标：读取后端 <code>get_rule_v2_week_target_context</code></p>
-                <p>• 日目标：按当前周目标 ÷ 5 折算</p>
+                <p>• 日目标：按剩余周目标 ÷ 剩余工作日动态计算</p>
                 <p>• 周末：不计入 W 分进度</p>
               </div>
             </div>
@@ -7546,6 +7562,7 @@
                 <p>• 今日目标：<strong>${dayTarget}</strong></p>
                 <p>• 本周已练：<strong>${weekDone}</strong></p>
                 <p>• 本周目标：<strong>${weekTarget}</strong></p>
+                <p>• 本周剩余目标：<strong>${remainingTarget}</strong></p>
                 <p>• ${weekendNote}</p>
               </div>
             </div>
@@ -7609,8 +7626,8 @@
       }
 
       if (target === 0) {
-        setStatusBadge(badgeEl, achieved > 0 ? '今日已练' : '未设目标', achieved > 0 ? 'progress' : '');
-        setProgressWidth(barEl, achieved > 0 ? 1 : 0);
+        setStatusBadge(badgeEl, achieved > 0 ? '超额完成中' : '本周已达成', achieved > 0 ? 'success' : 'progress');
+        setProgressWidth(barEl, 1);
         return;
       }
 
