@@ -7612,7 +7612,7 @@
       return `<span class="status-hero-duration-num">--</span><span class="status-hero-duration-unit">小时</span><span class="status-hero-duration-num">--</span><span class="status-hero-duration-unit">分钟</span>`;
     }
 
-    function updateDailyProgressUI(achievedMinutes, targetMinutes) {
+    function updateDailyProgressUI(achievedMinutes, targetMinutes, isPracticing = false) {
       const badgeEl = document.getElementById('dailyProgressLabel');
       const barEl = document.getElementById('dailyProgressBar');
       if (!badgeEl || !barEl) return;
@@ -7626,7 +7626,7 @@
       }
 
       if (target === 0) {
-        setStatusBadge(badgeEl, achieved > 0 ? '超额完成中' : '本周已达成', achieved > 0 ? 'success' : 'progress');
+        setStatusBadge(badgeEl, isPracticing ? '超额完成中' : '超额完成', 'success');
         setProgressWidth(barEl, 1);
         return;
       }
@@ -7708,6 +7708,7 @@
       if (renderStudentDetail._lastStudent !== studentName) return;
 
       const student = appState.students.get(studentName);
+      const isPracticing = !!(student && student.currentStatus !== 'offline' && student.currentStartTime);
       const overlay = getLiveSessionOverlayMinutes(student, new Date());
       const todayAchievedMinutes = Math.max(0, Math.round((cache.todayBaseMinutes || 0) + overlay.todayOverlayMinutes));
       const weeklyAchievedMinutes = Math.max(0, Math.round((cache.weeklyBaseMinutes || 0) + overlay.weeklyOverlayMinutes));
@@ -7719,7 +7720,7 @@
         setStatusBadge(document.getElementById('dailyProgressLabel'), '周末不计 W 分', 'progress');
         setProgressWidth(document.getElementById('dailyProgressBar'), 0);
       } else {
-        updateDailyProgressUI(todayAchievedMinutes, cache.dailyTargetMinutes);
+        updateDailyProgressUI(todayAchievedMinutes, cache.dailyTargetMinutes, isPracticing);
       }
 
       updateWeeklyProgressUI(weeklyAchievedMinutes, cache.weeklyTargetMinutes);
