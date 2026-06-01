@@ -3488,7 +3488,7 @@
     // 标准化
     const norm = {
       id: row.id,
-      student_name: row.student_name || row.student || row.studentName || '',
+      student_name: getLogStudentName(row),
       room_name: row.room_name || row.room || row.roomName || '',
       action: (row.action||'').toLowerCase(),
       timestamp: row.timestamp,
@@ -4091,6 +4091,49 @@
         return minutes >= range.start && minutes < range.end;
       }
     };
+
+    function getLogStudentName(log) {
+      return utils.normalizeStudentName(log?.student_name || log?.student || log?.studentName || '');
+    }
+
+    function getRawLogStudentName(log) {
+      return log?.student_name || log?.student || log?.studentName || '';
+    }
+
+    function sameStudentName(a, b) {
+      const left = utils.normalizeStudentName(a);
+      const right = utils.normalizeStudentName(b);
+      return !!left && !!right && left === right;
+    }
+
+    function resolveStudentName(studentName) {
+      const norm = utils.normalizeStudentName(studentName);
+      if (norm && (appState.students.has(norm) || appState.studentsMeta.has(norm) || appState.timeSlots.has(norm))) {
+        return norm;
+      }
+      if (studentName && (appState.students.has(studentName) || appState.studentsMeta.has(studentName) || appState.timeSlots.has(studentName))) {
+        return studentName;
+      }
+      return norm || studentName || '';
+    }
+
+    function getStudentNameCandidates(studentName) {
+      const norm = utils.normalizeStudentName(studentName);
+      const candidates = [studentName, norm];
+      const meta = appState.studentsMeta.get(norm) || appState.studentsMeta.get(studentName);
+      if (meta?.name) candidates.push(meta.name);
+
+      const logHit = (appState.practiceLogs || []).find(log => sameStudentName(getRawLogStudentName(log), norm || studentName));
+      if (logHit) candidates.push(getRawLogStudentName(logHit));
+
+      try {
+        const rows = Object.values(_wlbData || {}).flat();
+        const lbHit = rows.find(row => sameStudentName(row?.student_name, norm || studentName));
+        if (lbHit?.student_name) candidates.push(lbHit.student_name);
+      } catch (_) {}
+
+      return Array.from(new Set(candidates.filter(Boolean)));
+    }
 
     // ==== 后端备份读取辅助 ====
     // 统计用自然日 key（不受排行榜07:30切换影响）
@@ -4721,7 +4764,7 @@
             
             return {
               id: r.id,
-              student_name: r.student_name || r.student || r.studentName || '',
+              student_name: getLogStudentName(r),
               room_name: r.room_name || r.room || r.roomName || '',
               action: (r.action || '').toLowerCase(),
               timestamp: r.timestamp,
@@ -4748,6 +4791,7 @@
             const norm = utils.normalizeStudentName(student.name);
             appState.studentsMeta.set(norm, {
               id: student.id,
+              name: student.name || norm,
               major: student.major || '',
               grade: student.grade || '',
               archived: student.archived || false,
@@ -4933,7 +4977,7 @@
           
           return {
             id: r.id,
-            student_name: r.student_name || r.student || r.studentName || '',
+            student_name: getLogStudentName(r),
             room_name: r.room_name || r.room || r.roomName || '',
             action: (r.action || '').toLowerCase(),
             timestamp: r.timestamp,
@@ -4971,6 +5015,7 @@
           const norm = utils.normalizeStudentName(student.name);
           appState.studentsMeta.set(norm, {
             id: student.id,
+            name: student.name || norm,
             major: student.major || '',
             grade: student.grade || '',
             archived: student.archived || false,
@@ -5284,6 +5329,7 @@
    */
   function deriveCurrentSessionForStudent(studentName){
     try{
+      studentName = resolveStudentName(studentName);
       const student = appState.students.get(studentName);
       if(!student) return;
       // 统一完全使用日志推导，不再依赖 rooms 占用；确保状态单一来源避免“房间还没释放”假阳性
@@ -5298,7 +5344,7 @@
         student.currentRoom = null;
         student.currentStartTime = null;
       }
-      if(uiState.view==='detail' && uiState.selectedStudent===studentName){
+      if(isSelectedDetailStudent(studentName)){
         updateCurrentStatus(student);
       }
     }catch(e){ console.warn('deriveCurrentSessionForStudent error', e); }
@@ -5312,12 +5358,13 @@
   // 基于 practice_logs 推导当前是否有未结束会话
   function computeLiveSessionFromLogs(studentName){
     try{
+      studentName = resolveStudentName(studentName);
       // 21:30 截断检查：如果当前时间超过 21:30，且开始时间早于 21:30，强制视为离线
       const now = new Date();
       const cutoff = new Date(now);
       cutoff.setHours(21, 30, 0, 0);
 
-      const logs = (appState.practiceLogsNormalized || appState.practiceLogs || []).filter(l=> l.student_name===studentName);
+      const logs = (appState.practiceLogsNormalized || appState.practiceLogs || []).filter(l=> sameStudentName(l.student_name || l.student || l.studentName, studentName));
       if(!logs.length) return {active:false};
       const today = new Date(); today.setHours(0,0,0,0);
       const nextDay = new Date(today.getTime()+86400000);
@@ -5352,7 +5399,7 @@
     const __origAppend = appendPracticeLogIncremental;
     appendPracticeLogIncremental = function(row){
       const ret = __origAppend(row);
-      if(uiState?.selectedStudent && row?.student_name === uiState.selectedStudent){
+      if(uiState?.selectedStudent && sameStudentName(row?.student_name, uiState.selectedStudent)){
         updateStudentLiveStatus(uiState.selectedStudent);
       }
       // 对任意学生：如果是 clear/assign 事件立即更新该学生 live 状态
@@ -5513,7 +5560,7 @@
       
       const studentLogs = appState.practiceLogs.filter(log => {
         const logStudentName = log.student_name || log.student || log.studentName;
-        return logStudentName === studentName && utils.getDateKey(new Date(log.timestamp)) === dateKey;
+        return sameStudentName(logStudentName, studentName) && utils.getDateKey(new Date(log.timestamp)) === dateKey;
       });
 
       if (studentLogs.length === 0) {
@@ -5740,7 +5787,7 @@
     };
 
     function isSelectedDetailStudent(studentName) {
-      return uiState.view === 'detail' && uiState.selectedStudent === studentName;
+      return uiState.view === 'detail' && sameStudentName(uiState.selectedStudent, studentName);
     }
 
     let __rootScrollLocked = false;
@@ -6945,6 +6992,7 @@
 
     // 从搜索结果打开学生详情
     function openStudentDetailFromSearch(studentName) {
+      studentName = resolveStudentName(studentName);
       const searchInput = document.getElementById('studentSearchInput');
       const searchResults = document.getElementById('searchResults');
       
@@ -6970,6 +7018,7 @@
 
     // 打开学生详情页面
     function openStudentDetail(studentName) {
+      studentName = resolveStudentName(studentName);
       // 🚀 性能优化：延迟执行以显示点击反馈
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -7051,6 +7100,10 @@
 
     // 渲染学生详情页面
   async function renderStudentDetail(studentName) {
+      studentName = resolveStudentName(studentName);
+      if (uiState.selectedStudent !== studentName) {
+        uiState.selectedStudent = studentName;
+      }
       const student = appState.students.get(studentName);
       if (!student) return;
 
@@ -7066,11 +7119,12 @@
       */
 
       const meta = appState.studentsMeta.get(studentName) || {};
+      const displayName = meta.name || studentName;
       
       // 更新基本信息
-      document.getElementById('detailTitle').textContent = `${studentName} 详情`;
+      document.getElementById('detailTitle').textContent = `${displayName} 详情`;
       const studentNameEl = document.getElementById('studentName');
-      studentNameEl.textContent = studentName;
+      studentNameEl.textContent = displayName;
 
       // 判断是否切换了学生（切换时才重置，同学生刷新时保留旧值避免闪烁）
       const _isNewStudent = renderStudentDetail._lastStudent !== studentName;
@@ -7080,11 +7134,13 @@
       const coinBadge = document.getElementById('studentCoinBadge');
       if (coinBadge) {
         if (_isNewStudent) coinBadge.style.display = 'none';
-        supabaseClient.from('student_coins').select('balance').eq('student_name', studentName).single()
+        const coinNameCandidates = getStudentNameCandidates(studentName);
+        supabaseClient.from('student_coins').select('balance').in('student_name', coinNameCandidates).limit(1)
           .then(({data, error}) => {
             // 只更新当前仍在查看该学生时的结果，防止快速切换时结果乱序
             if (renderStudentDetail._lastStudent === studentName) {
-              coinBadge.textContent = `🎵 ${(!error && data) ? data.balance : 0}`;
+              const row = Array.isArray(data) ? data[0] : data;
+              coinBadge.textContent = `🎵 ${(!error && row) ? row.balance : 0}`;
               coinBadge.style.display = 'inline-flex';
             }
           }).catch(() => {});
@@ -7182,8 +7238,7 @@
 
           // 优先用综合榜缓存里的 display_score，与排行榜完全一致
           const compRows = (typeof _wlbData !== 'undefined' && _wlbData['综合榜']) || [];
-          const normName = utils.normalizeStudentName(studentName);
-          const lbHit = compRows.find(r => r.student_name === normName || r.student_name === studentName);
+          const lbHit = compRows.find(r => sameStudentName(r.student_name, studentName));
           const score = lbHit ? (lbHit.display_score || 0) : (cur.composite_score || 0);
 
           if (score === 0 && !practicedThisWeek) {
@@ -7295,6 +7350,7 @@
     // 显示今日总计时间的详细说明
     function showTodayTotalExplanation(studentName) {
       try {
+        studentName = resolveStudentName(studentName);
         const today = new Date();
         const dayData = calculateDayData(studentName, today);
         const totalMinutes = dayData.in + dayData.out;
@@ -7306,7 +7362,7 @@
         const todayLogs = baseLogs.filter(log => {
           if (!log.timestamp || !log.action) return false;
           const logStudentName = log.student_name || log.student || log.studentName;
-          return logStudentName === studentName && utils.getDateKey(new Date(log.timestamp)) === todayKey;
+          return sameStudentName(logStudentName, studentName) && utils.getDateKey(new Date(log.timestamp)) === todayKey;
         });
         
         if (todayLogs.length === 0) {
@@ -7903,6 +7959,7 @@
 
     // 更新今日时间轴 - 优先使用增量更新机制
     function updateTodayTimeline(studentName) {
+      studentName = resolveStudentName(studentName);
       // 🚀 优先使用增量更新，性能更好，用户体验更流畅
       if (timelineCache.has(studentName)) {
         updateTimelineIncremental(studentName);
@@ -7915,12 +7972,13 @@
     
     // 完整重建时间轴（保留原有逻辑作为兜底）
     function updateTodayTimelineFull(studentName) {
+      studentName = resolveStudentName(studentName);
       const container = document.getElementById('todayTimeline');
       const __perfStart = performance.now();
       const baseLogs = Array.isArray(appState.practiceLogsNormalized) ? appState.practiceLogsNormalized : (appState.practiceLogs||[]);
       const studentLogs = baseLogs.filter(log => {
         const logStudentName = log.student_name || log.student || log.studentName;
-        return logStudentName === studentName;
+        return sameStudentName(logStudentName, studentName);
       });
 
       const today = new Date();
@@ -8195,6 +8253,7 @@
      * @param {Object} newLog 新的日志记录（可选，用于预测性更新）
      */
     function updateTimelineIncremental(studentName, newLog = null) {
+      studentName = resolveStudentName(studentName);
       const container = document.getElementById('todayTimeline');
       if (!container) return;
       // 如果切换了学生，但沿用了同一个容器，需要重置（否则可能出现缓存与实际DOM脱节，导致新增会话被 arraysEqual 短路）
@@ -8208,7 +8267,7 @@
       const baseLogs = Array.isArray(appState.practiceLogsNormalized) ? appState.practiceLogsNormalized : (appState.practiceLogs||[]);
       const studentLogs = baseLogs.filter(log => {
         const logStudentName = log.student_name || log.student || log.studentName;
-        return logStudentName === studentName;
+        return sameStudentName(logStudentName, studentName);
       });
 
       const today = new Date();
@@ -9265,7 +9324,7 @@
 
         // 若当前打开的学生详情 == 此学生 且 周时段弹窗存在，则刷新其内容
         try {
-          if(uiState.view==='detail' && uiState.selectedStudent===studentName){
+          if(isSelectedDetailStudent(studentName)){
             const modal=document.querySelector('.lb-modal');
             if(modal && /每周练琴时段/.test(modal.textContent||'')){
               if(typeof closeScoreDetailModal==='function') closeScoreDetailModal();
@@ -9456,6 +9515,7 @@
      * @param {Object} newStudentData 新的学生数据
      */
     function updateStudentInfoIncremental(studentName, newStudentData = null) {
+      studentName = resolveStudentName(studentName);
       const cached = studentsCache.get(studentName);
       // appState.students 是 Map<name, studentData>
       let currentStudent = {};
@@ -9858,7 +9918,8 @@
 
     // 检查会话是否在规定时间段内
     function isSessionInSchedule(session, studentName) {
-      const timeSlots = appState.timeSlots.get(studentName);
+      studentName = resolveStudentName(studentName);
+      const timeSlots = utils.getStudentTimeSlots(studentName);
       if (!timeSlots) return false;
 
       const sessionDate = new Date(session.start);
@@ -9895,6 +9956,7 @@
 
     // 更新历史七天总结
     async function updateWeekHistory(studentName) {
+      studentName = resolveStudentName(studentName);
       dbg('updateWeekHistory called for:', studentName);
       // 计算七天数据（优先使用后端备份）
       const weekData = await calculateWeekData(studentName);
@@ -9906,6 +9968,7 @@
 
     // 计算七天数据
     async function calculateWeekData(studentName) {
+      studentName = resolveStudentName(studentName);
       const dailyData = [];
       const today = new Date();
       let totalIn = 0;
@@ -9945,6 +10008,7 @@
 
     // 计算单日数据
   function calculateDayData(studentName, date) {
+  studentName = resolveStudentName(studentName);
   // 统一：使用 assign/clear 配对模式构建会话
   const dateKey = getStatsDayKey(date);
   const baseLogs = Array.isArray(appState.practiceLogsNormalized) ? appState.practiceLogsNormalized : (appState.practiceLogs||[]);
@@ -9953,7 +10017,7 @@
     // 按 timestamp 所在自然日过滤，只处理有 action 的日志
     if(!l.timestamp || !l.action) return false; 
     const tsDate=new Date(l.timestamp); 
-    return getStatsDayKey(tsDate)===dateKey && (l.student_name===studentName);
+    return getStatsDayKey(tsDate)===dateKey && sameStudentName(l.student_name || l.student || l.studentName, studentName);
   });
   if(!dayLogs.length) return { in:0, out:0 };
 
@@ -10071,7 +10135,7 @@
       // ✅ 每30秒更新学生详情页面的当前练琴时长显示
       currentDurationTimer = setInterval(() => {
         if (uiState.view === 'detail' && uiState.selectedStudent) {
-          const student = appState.students.get(uiState.selectedStudent);
+          const student = appState.students.get(resolveStudentName(uiState.selectedStudent));
           if (student && student.currentStatus !== 'offline' && student.currentStartTime) {
             const now = new Date();
             const sameDay = student.currentStartTime.getFullYear()===now.getFullYear() && student.currentStartTime.getMonth()===now.getMonth() && student.currentStartTime.getDate()===now.getDate();
@@ -10781,8 +10845,9 @@
     }
 
     function getTodaySlotsMinutes(studentName, today) {
+      studentName = resolveStudentName(studentName);
       const weekday1to7 = utils.getWeekday(today); // 1..7，周一=1，周日=7
-      const ts = appState.timeSlots.get(studentName);
+      const ts = utils.getStudentTimeSlots(studentName);
       const list = (ts && ts[weekday1to7]) ? ts[weekday1to7] : [];
       // 现有结构：[{start_time, end_time}]（字符串 HH:MM）或 {start, end}（分钟）
       return (list || []).map(s => {
@@ -10795,10 +10860,11 @@
     }
 
     function getTodayPracticeIntervalsMs(studentName, today) {
+      studentName = resolveStudentName(studentName);
       const dateKey = utils.getDateKey(today);
       const logs = (appState.practiceLogs || []).filter(log => {
         const nm = log.student_name || log.student || log.studentName;
-        if (nm !== studentName) return false;
+        if (!sameStudentName(nm, studentName)) return false;
         const dKey = utils.getDateKey(new Date(log.timestamp));
         return dKey === dateKey;
       }).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -11444,7 +11510,21 @@
         dbg('同步: 学生信息/时段变更');
         fetchDataWithDiff(['student_database', 'student_time_slots']);
       }, 10000), // ✅ 10秒节流 - 元数据低频变更，影响学生信息和时段配置
+
+      leaderboard: throttle((reason = 'realtime') => {
+        dbg(`同步: 排行榜刷新 (${reason})`);
+        if (window.__leaderboardSyncSystem) {
+          window.__leaderboardSyncSystem.updateAllLeaderboards({ force: true });
+        }
+      }, 800), // ✅ 0.8秒节流 - 榜单结果一旦真正落库就尽快刷新
     };
+
+    const refreshSelectedStudentDetailDebounced = debounce((studentName) => {
+      if (!studentName) return;
+      if (uiState.view === 'detail' && sameStudentName(uiState.selectedStudent, studentName)) {
+        renderStudentDetail(studentName);
+      }
+    }, 800);
     
     // 性能监控
     let updateCounter = 0;
@@ -11648,7 +11728,7 @@
 
             if (!isPageVisible) {
               markPendingVisibilityRefresh('practice_logs');
-              if (action === 'clear') scheduleWlbRefresh();
+              if (action === 'assign' || action === 'clear') scheduleWlbRefresh(1200, `practice-log-${action}`);
               return;
             }
 
@@ -11684,13 +11764,65 @@
                 }, 1000);
               }
 
-              if (action === 'clear') {
-                scheduleWlbRefresh();
+              if (action === 'assign' || action === 'clear') {
+                scheduleWlbRefresh(1200, `practice-log-${action}`);
               }
               return;
             }
 
             realtimeThrottlers.logs();
+          })
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'practice_sessions'
+          }, (payload) => {
+            const studentName = payload.new?.student_name || payload.old?.student_name;
+
+            dbg('🎼 practice_sessions表变更检测:', {
+              event: payload.eventType,
+              student: studentName,
+              start: payload.new?.session_start || payload.old?.session_start,
+              end: payload.new?.session_end || payload.old?.session_end,
+              cleaned_duration: payload.new?.cleaned_duration || payload.old?.cleaned_duration
+            });
+
+            _wlbNeedsRefresh = true;
+            if (!isPageVisible) {
+              markPendingVisibilityRefresh('practice_sessions');
+              return;
+            }
+
+            if (studentName && isSelectedDetailStudent(studentName)) {
+              refreshSelectedStudentDetailDebounced(studentName);
+            }
+            realtimeThrottlers.leaderboard('practice-sessions');
+          })
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'student_baseline'
+          }, (payload) => {
+            const studentName = payload.new?.student_name || payload.old?.student_name;
+
+            dbg('🏅 student_baseline表变更检测:', {
+              event: payload.eventType,
+              student: studentName,
+              composite_score: payload.new?.composite_score ?? payload.old?.composite_score,
+              raw_score: payload.new?.raw_score ?? payload.old?.raw_score,
+              last_updated: payload.new?.last_updated || payload.old?.last_updated
+            });
+
+            _wlbNeedsRefresh = true;
+            if (!isPageVisible) {
+              markPendingVisibilityRefresh('student_baseline');
+              return;
+            }
+
+            if (studentName && isSelectedDetailStudent(studentName)) {
+              refreshSelectedStudentDetailDebounced(studentName);
+            }
+            realtimeThrottlers.leaderboard('student-baseline');
           })
           .on('postgres_changes', {
             event: '*',
@@ -11982,26 +12114,21 @@
     async function fetchAnalysisCache(name) {
       try {
         if (!supabaseClient) return null;
-        const normName = utils.normalizeStudentName(name);
+        const nameCandidates = getStudentNameCandidates(name);
+        let rows = null;
         
         // 按 generated_at 倒序，确保始终取最新的一条
-        // 尝试匹配标准化名字
-        let { data: rows, error } = await supabaseClient
-          .from('student_ai_analysis')
-          .select('analysis_text,generated_at,model_source')
-          .eq('student_name', normName)
-          .order('generated_at', { ascending: false })
-          .limit(1);
-          
-        // 备用：尝试原始名字
-        if ((!rows || !rows.length) && name !== normName) {
-           const res = await supabaseClient
+        for (const candidate of nameCandidates) {
+          const { data } = await supabaseClient
             .from('student_ai_analysis')
             .select('analysis_text,generated_at,model_source')
-            .eq('student_name', name)
+            .eq('student_name', candidate)
             .order('generated_at', { ascending: false })
             .limit(1);
-           if (res.data && res.data.length) rows = res.data;
+          if (data && data.length) {
+            rows = data;
+            break;
+          }
         }
           
         if (!rows || !rows.length) return null;
@@ -12034,24 +12161,21 @@
 
         const normName = utils.normalizeStudentName(name);
         dbg('[fetchStudentScore] 标准化姓名:', normName);
+        const nameCandidates = getStudentNameCandidates(name);
 
         // 从 student_baseline 获取最新有效分（与 dashboard 保持一致）
-        let { data: rows, error } = await supabaseClient
-          .from('student_baseline')
-          .select('composite_score, raw_score, last_updated')
-          .eq('student_name', normName)
-          .limit(1);
-
-        if (error) console.error('[fetchStudentScore] 查询失败 (标准姓名):', error);
-
-        // 回退：尝试原始姓名
-        if ((!rows || !rows.length) && name !== normName) {
-          const res = await supabaseClient
+        let rows = null;
+        for (const candidate of nameCandidates) {
+          const { data, error } = await supabaseClient
             .from('student_baseline')
             .select('composite_score, raw_score, last_updated')
-            .eq('student_name', name)
+            .eq('student_name', candidate)
             .limit(1);
-          if (res.data && res.data.length) rows = res.data;
+          if (error) console.error('[fetchStudentScore] 查询失败:', error);
+          if (data && data.length) {
+            rows = data;
+            break;
+          }
         }
 
         if (!rows || !rows.length) {
@@ -12072,7 +12196,7 @@
           const { data: ps } = await supabaseClient
             .from('practice_sessions')
             .select('session_start')
-            .eq('student_name', normName)
+            .in('student_name', nameCandidates)
             .gte('session_start', weekMondayMs)
             .limit(50);
           practicedThisWeek = !!(ps && ps.some(r => r?.session_start && isWorkday(new Date(r.session_start))));
@@ -12085,7 +12209,7 @@
           if (compRows.length > 0) {
             // 用排行榜缓存数据，排名与榜单完全一致
             totalCount = compRows.length;
-            const hit = compRows.find(r => r.student_name === normName || r.student_name === name);
+            const hit = compRows.find(r => sameStudentName(r.student_name, name));
             rank = hit ? hit.rank_no : null;
           } else if (practicedThisWeek && (current.composite_score || 0) > 0) {
             // 排行榜尚未加载时，优先复用统一的周榜加载链路，避免重复 RPC
@@ -12093,7 +12217,7 @@
             const fallbackCompRows = (typeof _wlbData !== 'undefined' && _wlbData['综合榜']) || [];
             if (fallbackCompRows.length > 0) {
               totalCount = fallbackCompRows.length;
-              const hit = fallbackCompRows.find(r => r.student_name === normName || r.student_name === name);
+              const hit = fallbackCompRows.find(r => sameStudentName(r.student_name, name));
               rank = hit ? hit.rank_no : null;
             }
           }
@@ -12462,15 +12586,16 @@
       _wlbRefreshTimer = null;
     }
 
-    // 当 practice_logs 有 clear 事件时，延迟 5 秒刷新（等 compute_student_score 完成）
-    function scheduleWlbRefresh() {
+    // 当登记/还卡事件触发后，短延迟刷新一次周榜；真正的 practice_sessions / student_baseline realtime
+    // 会继续兜底，确保后端算分一落库前端就能尽快同步。
+    function scheduleWlbRefresh(delay = 1200, reason = 'practice-log') {
       _wlbNeedsRefresh = true;
       if (!isPageVisible) return;
       cancelScheduledWlbRefresh();
       _wlbRefreshTimer = setTimeout(() => {
         _wlbRefreshTimer = null;
-        void loadWeeklyLeaderboards({ force: true, reason: 'practice-clear' });
-      }, 5000);
+        void loadWeeklyLeaderboards({ force: true, reason });
+      }, delay);
     }
 
     // 音符币流水弹窗逻辑
