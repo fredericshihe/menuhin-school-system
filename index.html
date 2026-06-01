@@ -4214,15 +4214,20 @@
       try {
         if (!supabaseClient) return null;
         const weekMonday = utils.toIsoDate(getCurrentWeekMondayDate());
-        const { data, error } = await supabaseClient.rpc('get_rule_v2_week_target_context', {
-          p_student_name: utils.normalizeStudentName(studentName),
-          p_week_monday: weekMonday
-        });
-        if (error) {
-          console.warn('fetchRuleV2WeekTargetContext error:', error);
-          return null;
+        const candidates = getStudentNameCandidates(studentName);
+        for (const candidate of candidates) {
+          const { data, error } = await supabaseClient.rpc('get_rule_v2_week_target_context', {
+            p_student_name: candidate,
+            p_week_monday: weekMonday
+          });
+          if (error) {
+            console.warn('fetchRuleV2WeekTargetContext error:', error);
+            continue;
+          }
+          const row = Array.isArray(data) ? (data[0] || null) : (data || null);
+          if (row) return row;
         }
-        return Array.isArray(data) ? (data[0] || null) : (data || null);
+        return null;
       } catch (e) {
         console.warn('fetchRuleV2WeekTargetContext exception:', e);
         return null;
@@ -4232,7 +4237,7 @@
     async function fetchBackendWProgressMetrics(studentName, baseDate = new Date()) {
       try {
         if (!supabaseClient) return null;
-        const normName = utils.normalizeStudentName(studentName);
+        const nameCandidates = getStudentNameCandidates(studentName);
         const weekMonday = getCurrentWeekMondayDate(baseDate);
         const todayStart = new Date(baseDate);
         todayStart.setHours(0, 0, 0, 0);
@@ -4244,7 +4249,7 @@
           supabaseClient
             .from('practice_sessions')
             .select('session_start, cleaned_duration')
-            .eq('student_name', normName)
+            .in('student_name', nameCandidates)
             .gte('session_start', getLocalDayStartIso(weekMonday))
             .lt('session_start', tomorrowStart.toISOString())
             .order('session_start', { ascending: true })
@@ -4300,7 +4305,7 @@
     async function fetchBackendRecentDailyMinutes(studentName, endDate = new Date(), days = 7) {
       try {
         if (!supabaseClient) return new Map();
-        const normName = utils.normalizeStudentName(studentName);
+        const nameCandidates = getStudentNameCandidates(studentName);
         const startDate = new Date(endDate);
         startDate.setHours(0, 0, 0, 0);
         startDate.setDate(startDate.getDate() - (days - 1));
@@ -4311,7 +4316,7 @@
         const { data, error } = await supabaseClient
           .from('practice_sessions')
           .select('session_start, cleaned_duration')
-          .eq('student_name', normName)
+          .in('student_name', nameCandidates)
           .gte('session_start', startDate.toISOString())
           .lt('session_start', nextDay.toISOString())
           .order('session_start', { ascending: true });
