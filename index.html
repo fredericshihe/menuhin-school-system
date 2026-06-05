@@ -1055,6 +1055,15 @@
     font-weight: 700;
   }
 
+  .status-source-note {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+    color: var(--text-3);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
   .status-progress-rate {
     font-size: 20px;
     font-weight: 800;
@@ -1136,6 +1145,20 @@
   /* 时间轴标题行：左标题 + 右侧操作按钮 */
   .timeline-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
   .timeline-actions { display: inline-flex; align-items: center; gap: 8px; }
+  .timeline-title-wrap, .history-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .source-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    color: var(--text-3);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
   .timeline-head h3 { margin: 0; }
 
     .timeline-card h3 {
@@ -1353,8 +1376,12 @@
       font-size: 18px;
       font-weight: 600;
       color: #24292f;
-      margin: 0 0 16px 0;
+      margin: 0;
       letter-spacing: -0.01em;
+    }
+
+    .history-head {
+      margin-bottom: 16px;
     }
 
     /* 周练琴图表 */
@@ -1518,12 +1545,29 @@
       padding: 2px 8px;
       border-radius: 10px;
     }
+
+    .ai-date.is-stale {
+      color: #b45309;
+      background: #fff7ed;
+    }
     
     .ai-content {
       font-size: 13px;
       line-height: 1.6;
       color: var(--text);
       white-space: pre-wrap;
+    }
+
+    .ai-freshness-notice {
+      margin-bottom: 10px;
+      padding: 9px 10px;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+      background: #fff7ed;
+      color: #9a3412;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: normal;
     }
 
     .score-detail-btn {
@@ -1600,9 +1644,20 @@
         color: #94a3b8;
         background: rgba(255, 255, 255, 0.1);
       }
+
+      .ai-date.is-stale {
+        color: #fdba74;
+        background: rgba(251, 146, 60, 0.16);
+      }
       
       .ai-content {
         color: #e2e8f0;
+      }
+
+      .ai-freshness-notice {
+        border-color: rgba(251, 146, 60, 0.35);
+        background: rgba(251, 146, 60, 0.12);
+        color: #fed7aa;
       }
       
       .score-detail-btn {
@@ -3368,7 +3423,7 @@
                       <circle cx="12" cy="12" r="9"></circle>
                       <path d="M12 7v5l3 3"></path>
                     </svg>
-                    <span>今日进度</span>
+                    <span>今日计分进度</span>
                   </div>
                   <span class="status-badge" id="dailyProgressLabel">计算中</span>
                 </div>
@@ -3390,7 +3445,7 @@
                       <rect x="3" y="4" width="18" height="18" rx="2"></rect>
                       <path d="M3 10h18"></path>
                     </svg>
-                    <span>本周进度</span>
+                    <span>本周计分进度</span>
                   </div>
                   <span class="status-progress-rate" id="weeklyProgressPercent">--</span>
                 </div>
@@ -3402,13 +3457,17 @@
                   <div>目标 <strong id="weeklyTarget">--</strong></div>
                 </div>
               </div>
+              <div class="status-source-note">进度和近七天总结按清洗后的计分时长统计；时间线保留琴房占用时段。</div>
             </div>
           </div>
 
           <!-- 今日时间轴 -->
           <div class="timeline-card">
             <div class="timeline-head">
-              <h3>今日练琴时间轴</h3>
+              <div class="timeline-title-wrap">
+                <h3>今日练琴时间轴</h3>
+                <span class="source-chip">占用时段</span>
+              </div>
               <div class="timeline-actions">
                 <button class="btn btn--sm btn--ghost" id="viewWeekSlotsBtn" title="查看每周时段">🗓 查看周时段</button>
               </div>
@@ -3420,7 +3479,10 @@
 
           <!-- 历史七天总结 -->
           <div class="history-card">
-            <h3>近七天练琴总结</h3>
+            <div class="history-head">
+              <h3>近七天练琴总结</h3>
+              <span class="source-chip">计分时长</span>
+            </div>
             
             <!-- 七天练琴条形图 -->
             <div class="week-chart">
@@ -4408,7 +4470,7 @@
         script.onerror = () => {
           // 本地文件失败时才回退到 CDN
           const fallbackScript = document.createElement('script');
-          fallbackScript.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js';
+          fallbackScript.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
           fallbackScript.onload = resolve;
           fallbackScript.onerror = reject;
           document.head.appendChild(fallbackScript);
@@ -7199,7 +7261,10 @@
         }
         const _aiChevron = document.getElementById('aiChevron');
         if (_aiChevron) _aiChevron.style.transform = 'rotate(0deg)';
-        if (_aiDate) _aiDate.textContent = '';
+        if (_aiDate) {
+          _aiDate.textContent = '';
+          _aiDate.classList.remove('is-stale');
+        }
       }
 
       // 🚀 性能优化：分批延迟加载耗时组件，避免阻塞转场动画和主线程
@@ -7273,9 +7338,11 @@
             aiCard.style.display = 'block';
             delete aiCard.dataset.state;
             const text = formatAiAnalysisHtml(analysis.analysis_text);
-            if (aiContent) aiContent.innerHTML = text;
+            const freshnessNotice = formatAiFreshnessNotice(analysis);
+            if (aiContent) aiContent.innerHTML = `${freshnessNotice}${text}`;
             if (aiDate) {
-              aiDate.textContent = formatAiGeneratedAt(analysis.generated_at);
+              aiDate.textContent = `${formatAiGeneratedAt(analysis.generated_at)}${analysis.has_new_practice ? ' · 待更新' : ''}`;
+              aiDate.classList.toggle('is-stale', !!analysis.has_new_practice);
             }
           } else if (aiCard) {
             aiCard.style.display = 'block';
@@ -7283,7 +7350,10 @@
             if (aiContent) {
               aiContent.innerHTML = '<span style="color:#9ca3af;font-size:13px;">暂无 AI 分析记录，系统会在工作日上午 10:00 自动更新综合榜前 50 名，或在管理员界面手动触发。</span>';
             }
-            if (aiDate) aiDate.textContent = '';
+            if (aiDate) {
+              aiDate.textContent = '';
+              aiDate.classList.remove('is-stale');
+            }
           }
         }
 
@@ -12138,22 +12208,85 @@
           
         if (!rows || !rows.length) return null;
         
-        const ageDays = (Date.now() - new Date(rows[0].generated_at).getTime()) / 86400000;
-        return ageDays < AI_CACHE_DAYS ? rows[0] : null;
+        const latest = rows[0];
+        const ageDays = (Date.now() - new Date(latest.generated_at).getTime()) / 86400000;
+        if (ageDays >= AI_CACHE_DAYS) return null;
+
+        const freshness = await detectAnalysisFreshness(nameCandidates, latest.generated_at);
+        return { ...latest, ...freshness };
       } catch (e) {
         console.warn('fetchAnalysisCache error:', e);
         return null;
       }
     }
 
-    function formatAiGeneratedAt(value) {
+    async function detectAnalysisFreshness(nameCandidates, generatedAt) {
+      const result = { has_new_practice: false, latest_session_at: null };
+      try {
+        if (!supabaseClient || !Array.isArray(nameCandidates) || !nameCandidates.length) return result;
+        const generatedDate = new Date(generatedAt);
+        const generatedMs = generatedDate.getTime();
+        if (!Number.isFinite(generatedMs)) return result;
+
+        const queryStart = new Date(generatedDate);
+        queryStart.setHours(0, 0, 0, 0);
+
+        const { data, error } = await supabaseClient
+          .from('practice_sessions')
+          .select('session_start,session_end,created_at')
+          .in('student_name', nameCandidates)
+          .gte('session_start', queryStart.toISOString())
+          .order('session_start', { ascending: false })
+          .limit(50);
+
+        if (error) {
+          console.warn('detectAnalysisFreshness error:', error);
+          return result;
+        }
+
+        let latestMs = 0;
+        let latestValue = null;
+        (data || []).forEach(row => {
+          ['session_start', 'session_end', 'created_at'].forEach(field => {
+            if (!row?.[field]) return;
+            const ts = new Date(row[field]).getTime();
+            if (Number.isFinite(ts) && ts > generatedMs && ts > latestMs) {
+              latestMs = ts;
+              latestValue = row[field];
+            }
+          });
+        });
+
+        if (latestMs > 0) {
+          result.has_new_practice = true;
+          result.latest_session_at = latestValue;
+        }
+      } catch (e) {
+        console.warn('detectAnalysisFreshness exception:', e);
+      }
+      return result;
+    }
+
+    function formatAiTimestamp(value) {
       const d = new Date(value);
       if (Number.isNaN(d.getTime())) return '';
       return `${d.getMonth() + 1}月${d.getDate()}日 ${d.toLocaleTimeString('zh-CN', {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false
-      })} 生成`;
+      })}`;
+    }
+
+    function formatAiGeneratedAt(value) {
+      const text = formatAiTimestamp(value);
+      return text ? `${text} 生成` : '';
+    }
+
+    function formatAiFreshnessNotice(analysis) {
+      if (!analysis || !analysis.has_new_practice) return '';
+      const latestText = formatAiTimestamp(analysis.latest_session_at);
+      const suffix = latestText ? ` 最新记录：${latestText}。` : '';
+      return `<div class="ai-freshness-notice">提示：AI 分析生成后已有新的练琴记录，下面分析暂未包含最新进度；当前今日/本周进度以下方实时数据为准。${suffix}</div>`;
     }
 
     async function fetchStudentScore(name) {
