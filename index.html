@@ -5240,21 +5240,13 @@
         studentLogs.get(studentName).push(log);
       });
       
-      // 获取所有学生（包括有时间段配置但没有练琴日志的学生）
+      // 学生名单只认 student_database（appState.studentsMeta）里现存的学生——
+      // 练琴日志、时间段配置只用来判断"这个学生现在的状态"，不能反过来当作"新增一个学生"的依据。
+      // 之前这里把 studentLogs / timeSlots 里出现过的名字也无条件并入花名册，导致哪怕一个学生早就
+      // 不在 student_database 里了（改名、删除、历史活动的学生），只要他多年前有过一条练琴记录，
+      // 首页"总人数"统计就会一直把他算进去，和学生库的实际在读人数对不上。
       const allStudentNames = new Set();
-      
-      // 从练琴日志中获取学生名单
-      studentLogs.forEach((logs, studentName) => {
-        allStudentNames.add(studentName);
-      });
-      
-      // 从学生数据库中获取学生名单
       appState.studentsMeta.forEach((meta, studentName) => {
-        allStudentNames.add(studentName);
-      });
-      
-      // 从时间段配置中获取学生名单
-      appState.timeSlots.forEach((slots, studentName) => {
         allStudentNames.add(studentName);
       });
       
@@ -9624,6 +9616,65 @@
       }
     }
 
+    function handleStudentRenameIncremental(oldName, newRecord) {
+      const newName = utils.normalizeStudentName(newRecord?.name || '');
+      const oldNorm = utils.normalizeStudentName(oldName || '');
+      if (!oldNorm || !newName || oldNorm === newName) return;
+
+      const moveMapEntry = (map) => {
+        if (!(map instanceof Map)) return;
+        if (map.has(oldNorm) && !map.has(newName)) {
+          map.set(newName, map.get(oldNorm));
+        }
+        map.delete(oldNorm);
+      };
+
+      moveMapEntry(appState.students);
+      moveMapEntry(appState.studentsMeta);
+      moveMapEntry(appState.timeSlots);
+      studentsCache.delete(oldNorm);
+      studentsCache.delete(newName);
+
+      const meta = {
+        id: newRecord.id,
+        name: newRecord.name || newName,
+        major: newRecord.major || '',
+        grade: newRecord.grade || '',
+        archived: newRecord.archived || false,
+        remark: newRecord.remark || '',
+        created_at: newRecord.created_at || null,
+        updated_at: newRecord.updated_at || null
+      };
+
+      appState.studentsMeta.set(newName, meta);
+      if (appState.students instanceof Map && appState.students.has(newName)) {
+        appState.students.set(newName, {
+          ...appState.students.get(newName),
+          name: newName,
+          major: meta.major,
+          grade: meta.grade,
+          archived: meta.archived
+        });
+      }
+
+      if (sameStudentName(uiState.selectedStudent, oldNorm)) {
+        uiState.selectedStudent = newName;
+      }
+      if (renderStudentDetail._lastStudent && sameStudentName(renderStudentDetail._lastStudent, oldNorm)) {
+        renderStudentDetail._lastStudent = null;
+      }
+
+      try { localStorage.removeItem('rank_cache_v2'); } catch (_) {}
+      if (window.__scoreCache) window.__scoreCache.clear();
+      if (window.__studentListRender) window.__studentListRender.lastSig = null;
+
+      updateViews();
+      if (isSelectedDetailStudent(newName)) {
+        refreshSelectedStudentDetailDebounced(newName);
+      }
+      dbg(`👥 学生改名增量同步: ${oldNorm} -> ${newName}`);
+    }
+
     /**
      * 计算学生信息变化
      */
@@ -11905,6 +11956,8 @@
             table: 'student_database'
           }, (payload) => {
             const studentName = payload.new?.name || payload.old?.name;
+            const oldStudentName = payload.old?.name || '';
+            const newStudentName = payload.new?.name || '';
 
             dbg('👥 student_database表变更检测:', {
               event: payload.eventType,
@@ -11917,6 +11970,10 @@
             if (!isPageVisible) {
               markPendingVisibilityRefresh('student_database');
               return;
+            }
+
+            if (payload.eventType === 'UPDATE' && oldStudentName && newStudentName && oldStudentName !== newStudentName) {
+              handleStudentRenameIncremental(oldStudentName, payload.new);
             }
 
             setTimeout(() => {
