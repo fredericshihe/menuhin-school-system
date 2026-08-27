@@ -1496,80 +1496,6 @@
       margin-top: 2px;
     }
     
-    /* AI 分析卡片 */
-    .ai-card {
-      background: linear-gradient(145deg, #ffffff, #f8fafc);
-      border: 1px solid rgba(99, 102, 241, 0.2);
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 16px;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .ai-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 3px;
-      background: linear-gradient(90deg, var(--primary), #a855f7);
-    }
-    
-    .ai-head {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid rgba(0,0,0,0.05);
-    }
-    
-    .ai-icon {
-      font-size: 18px;
-    }
-    
-    .ai-title {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--primary-700);
-      flex: 1;
-    }
-    
-    .ai-date {
-      font-size: 11px;
-      color: var(--text-muted);
-      background: rgba(0,0,0,0.04);
-      padding: 2px 8px;
-      border-radius: 10px;
-    }
-
-    .ai-date.is-stale {
-      color: #b45309;
-      background: #fff7ed;
-    }
-    
-    .ai-content {
-      font-size: 13px;
-      line-height: 1.6;
-      color: var(--text);
-      white-space: pre-wrap;
-    }
-
-    .ai-freshness-notice {
-      margin-bottom: 10px;
-      padding: 9px 10px;
-      border: 1px solid #fed7aa;
-      border-radius: 8px;
-      background: #fff7ed;
-      color: #9a3412;
-      font-size: 12px;
-      line-height: 1.5;
-      white-space: normal;
-    }
-
     .score-detail-btn {
       display: inline-flex;
       align-items: center;
@@ -1626,40 +1552,6 @@
         color: #94a3b8;
       }
 
-      .ai-card {
-        background: linear-gradient(145deg, #1e293b, #0f172a);
-        border-color: rgba(99, 102, 241, 0.3);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      }
-      
-      .ai-head {
-        border-bottom-color: rgba(255, 255, 255, 0.1);
-      }
-      
-      .ai-title {
-        color: #818cf8;
-      }
-      
-      .ai-date {
-        color: #94a3b8;
-        background: rgba(255, 255, 255, 0.1);
-      }
-
-      .ai-date.is-stale {
-        color: #fdba74;
-        background: rgba(251, 146, 60, 0.16);
-      }
-      
-      .ai-content {
-        color: #e2e8f0;
-      }
-
-      .ai-freshness-notice {
-        border-color: rgba(251, 146, 60, 0.35);
-        background: rgba(251, 146, 60, 0.12);
-        color: #fed7aa;
-      }
-      
       .score-detail-btn {
         background: rgba(255, 255, 255, 0.1);
         border-color: rgba(255, 255, 255, 0.2);
@@ -3380,19 +3272,6 @@
             </div>
           </div>
 
-          <!-- AI 分析卡片 -->
-          <div class="ai-card" id="aiAnalysisCard" style="display:none;">
-            <div class="ai-head" role="button" tabindex="0" style="cursor:pointer; margin-bottom:0; padding-bottom:0; border-bottom:none; justify-content:space-between;">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span class="ai-icon">🤖</span>
-                <span class="ai-title">AI 练琴分析</span>
-                <span class="ai-date" id="aiDate"></span>
-              </div>
-              <svg id="aiChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;transition:transform 0.2s;color:var(--text-3);"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            <div class="ai-content" id="aiContent" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border);"></div>
-          </div>
-
           <!-- 当前状态卡片 -->
           <div class="status-card status-dashboard">
             <div class="status-hero" id="statusHero">
@@ -3640,12 +3519,6 @@
       '"': '&quot;',
       "'": '&#39;'
     })[char]);
-  }
-  function formatAiAnalysisHtml(value) {
-    return escapeHtml(value || '')
-      .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-      .replace(/^#+\s+(.*)$/gm, '<h4>$1</h4>')
-      .replace(/\n/g, '<br>');
   }
   // 日志节流：每秒最多输出 MAX_LOGS_PER_SEC 条；超过的合并为一条摘要。
   const MAX_LOGS_PER_SEC = 80; // 安全上限（可调）
@@ -6958,22 +6831,6 @@
         coinBadge.__staticUiBound = true;
       }
 
-      const aiHead = document.querySelector('#aiAnalysisCard .ai-head');
-      if (aiHead && !aiHead.__staticUiBound) {
-        const toggleAiAnalysisFromHead = () => {
-          toggleAiAnalysis();
-        };
-
-        aiHead.addEventListener('click', toggleAiAnalysisFromHead);
-        aiHead.addEventListener('keydown', (e) => {
-          if (e.key !== 'Enter' && e.key !== ' ') return;
-          e.preventDefault();
-          toggleAiAnalysisFromHead();
-        });
-
-        aiHead.__staticUiBound = true;
-      }
-
       const coinHistoryModal = document.getElementById('coinHistoryModal');
       if (coinHistoryModal && !coinHistoryModal.__staticUiBound) {
         coinHistoryModal.addEventListener('click', (e) => {
@@ -7234,31 +7091,6 @@
       document.getElementById('studentGrade').textContent = meta.grade || '未知年级';
       document.getElementById('studentMajor').textContent = meta.major || '未知专业';
 
-      // 检查是否需要重新加载 AI 分析（只有切换学生时才重新拉取，避免实时数据更新触发反复加载）
-      const _aiCard = document.getElementById('aiAnalysisCard');
-      const _aiContent = document.getElementById('aiContent');
-      const _aiDate = document.getElementById('aiDate');
-      const _aiAlreadyLoaded = _aiCard && _aiCard.dataset.loadedFor === studentName;
-
-      if (!_aiAlreadyLoaded) {
-        // 切换到新学生：清空 AI 卡片并显示加载中，重置为收起状态
-        if (_aiCard) {
-          _aiCard.style.display = 'block';
-          _aiCard.dataset.state = 'loading';
-          _aiCard.dataset.loadedFor = studentName;
-        }
-        if (_aiContent) {
-          _aiContent.innerHTML = '<span style="color:#9ca3af;font-size:13px;">正在加载 AI 分析…</span>';
-          _aiContent.style.display = 'none'; // 默认收起
-        }
-        const _aiChevron = document.getElementById('aiChevron');
-        if (_aiChevron) _aiChevron.style.transform = 'rotate(0deg)';
-        if (_aiDate) {
-          _aiDate.textContent = '';
-          _aiDate.classList.remove('is-stale');
-        }
-      }
-
       // 🚀 性能优化：分批延迟加载耗时组件，避免阻塞转场动画和主线程
       
       // 1. 优先更新当前状态（轻量）
@@ -7277,17 +7109,13 @@
         updateWeekHistory(studentName);
       }, 150);
 
-      // 4. 更新分数卡片；AI 分析仅在切换学生时重新拉取
+      // 4. 更新分数卡片
       setTimeout(async () => {
         // 防止快速切换学生时，旧请求的结果覆盖新学生的数据
         if (renderStudentDetail._lastStudent !== studentName) return;
 
         const rankValEl = document.getElementById('rankScoreValue');
         const rankMetaEl = document.getElementById('rankMeta');
-        const aiCard = document.getElementById('aiAnalysisCard');
-        const aiContent = document.getElementById('aiContent');
-        const aiDate = document.getElementById('aiDate');
-
         // 获取分数数据（每次都更新，分数实时变化）
         const scoreData = await fetchStudentScore(studentName);
 
@@ -7321,32 +7149,6 @@
         } else {
           if (rankValEl) rankValEl.textContent = '--';
           if (rankMetaEl) rankMetaEl.textContent = '暂无数据';
-        }
-
-        // AI 分析：仅在切换学生时拉取（同一学生重复渲染时跳过）
-        if (!_aiAlreadyLoaded) {
-          const analysis = await fetchAnalysisCache(studentName);
-          if (analysis && aiCard) {
-            aiCard.style.display = 'block';
-            delete aiCard.dataset.state;
-            const text = formatAiAnalysisHtml(analysis.analysis_text);
-            const freshnessNotice = formatAiFreshnessNotice(analysis);
-            if (aiContent) aiContent.innerHTML = `${freshnessNotice}${text}`;
-            if (aiDate) {
-              aiDate.textContent = `${formatAiGeneratedAt(analysis.generated_at)}${analysis.has_new_practice ? ' · 待更新' : ''}`;
-              aiDate.classList.toggle('is-stale', !!analysis.has_new_practice);
-            }
-          } else if (aiCard) {
-            aiCard.style.display = 'block';
-            aiCard.dataset.state = 'empty';
-            if (aiContent) {
-              aiContent.innerHTML = '<span style="color:#9ca3af;font-size:13px;">暂无 AI 分析记录，系统会在工作日上午 10:00 自动更新综合榜前 50 名，或在管理员界面手动触发。</span>';
-            }
-            if (aiDate) {
-              aiDate.textContent = '';
-              aiDate.classList.remove('is-stale');
-            }
-          }
         }
 
       }, 300);
@@ -12240,111 +12042,6 @@
     document.addEventListener('DOMContentLoaded', initializeApp);
 
     // 应用将通过DOMContentLoaded事件启动，避免重复初始化
-    // ==== 新增：AI 分析与分数获取 ====
-    const AI_CACHE_DAYS = 7;
-
-    async function fetchAnalysisCache(name) {
-      try {
-        if (!supabaseClient) return null;
-        const nameCandidates = getStudentNameCandidates(name);
-        let rows = null;
-        
-        // 按 generated_at 倒序，确保始终取最新的一条
-        for (const candidate of nameCandidates) {
-          const { data } = await supabaseClient
-            .from('student_ai_analysis')
-            .select('analysis_text,generated_at,model_source')
-            .eq('student_name', candidate)
-            .order('generated_at', { ascending: false })
-            .limit(1);
-          if (data && data.length) {
-            rows = data;
-            break;
-          }
-        }
-          
-        if (!rows || !rows.length) return null;
-        
-        const latest = rows[0];
-        const ageDays = (Date.now() - new Date(latest.generated_at).getTime()) / 86400000;
-        if (ageDays >= AI_CACHE_DAYS) return null;
-
-        const freshness = await detectAnalysisFreshness(nameCandidates, latest.generated_at);
-        return { ...latest, ...freshness };
-      } catch (e) {
-        console.warn('fetchAnalysisCache error:', e);
-        return null;
-      }
-    }
-
-    async function detectAnalysisFreshness(nameCandidates, generatedAt) {
-      const result = { has_new_practice: false, latest_session_at: null };
-      try {
-        if (!supabaseClient || !Array.isArray(nameCandidates) || !nameCandidates.length) return result;
-        const generatedDate = new Date(generatedAt);
-        const generatedMs = generatedDate.getTime();
-        if (!Number.isFinite(generatedMs)) return result;
-
-        const queryStart = new Date(generatedDate);
-        queryStart.setHours(0, 0, 0, 0);
-
-        const { data, error } = await supabaseClient
-          .from('practice_sessions')
-          .select('session_start,session_end,created_at')
-          .in('student_name', nameCandidates)
-          .gte('session_start', queryStart.toISOString())
-          .order('session_start', { ascending: false })
-          .limit(50);
-
-        if (error) {
-          console.warn('detectAnalysisFreshness error:', error);
-          return result;
-        }
-
-        let latestMs = 0;
-        let latestValue = null;
-        (data || []).forEach(row => {
-          ['session_start', 'session_end', 'created_at'].forEach(field => {
-            if (!row?.[field]) return;
-            const ts = new Date(row[field]).getTime();
-            if (Number.isFinite(ts) && ts > generatedMs && ts > latestMs) {
-              latestMs = ts;
-              latestValue = row[field];
-            }
-          });
-        });
-
-        if (latestMs > 0) {
-          result.has_new_practice = true;
-          result.latest_session_at = latestValue;
-        }
-      } catch (e) {
-        console.warn('detectAnalysisFreshness exception:', e);
-      }
-      return result;
-    }
-
-    function formatAiTimestamp(value) {
-      const d = new Date(value);
-      if (Number.isNaN(d.getTime())) return '';
-      return `${d.getMonth() + 1}月${d.getDate()}日 ${d.toLocaleTimeString('zh-CN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      })}`;
-    }
-
-    function formatAiGeneratedAt(value) {
-      const text = formatAiTimestamp(value);
-      return text ? `${text} 生成` : '';
-    }
-
-    function formatAiFreshnessNotice(analysis) {
-      if (!analysis || !analysis.has_new_practice) return '';
-      const latestText = formatAiTimestamp(analysis.latest_session_at);
-      const suffix = latestText ? ` 最新记录：${latestText}。` : '';
-      return `<div class="ai-freshness-notice">提示：AI 分析生成后已有新的练琴记录，下面分析暂未包含最新进度；当前今日/本周进度以下方实时数据为准。${suffix}</div>`;
-    }
 
     async function fetchStudentScore(name) {
       dbg('[fetchStudentScore] 开始获取分数:', name);
@@ -12667,19 +12364,6 @@
       document.querySelectorAll('.wlb-tab').forEach(t => t.classList.remove('active'));
       if (tabEl) tabEl.classList.add('active');
       renderWlbBoard(board);
-    }
-
-    function toggleAiAnalysis() {
-      const content = document.getElementById('aiContent');
-      const chevron = document.getElementById('aiChevron');
-      if (!content || !chevron) return;
-      if (content.style.display === 'none') {
-        content.style.display = 'block';
-        chevron.style.transform = 'rotate(180deg)';
-      } else {
-        content.style.display = 'none';
-        chevron.style.transform = 'rotate(0deg)';
-      }
     }
 
     function refreshCurrentStudentDetailAfterWlb() {
