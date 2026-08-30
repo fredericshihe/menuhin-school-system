@@ -3363,26 +3363,32 @@
 
       .live-student-list {
         display: flex;
+        align-items: center;
+        justify-content: flex-start;
         flex-wrap: nowrap;
-        gap: 7px;
+        gap: 4px;
         margin-top: 11px;
-        overflow: hidden;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
       }
+      .live-student-list::-webkit-scrollbar { display: none; }
 
       .live-student-chip {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        flex: 1 1 0;
+        flex: 0 0 auto;
         min-width: 0;
         gap: 6px;
-        min-height: 31px;
-        padding: 5px 9px;
+        min-height: 28px;
+        padding: 4px 7px;
         border: 1px solid color-mix(in oklab, #16a34a 25%, var(--border));
         border-radius: 999px;
         background: color-mix(in oklab, #16a34a 7%, var(--surface-1));
         color: var(--text-2);
-        font-size: 12px;
+        font-size: 11.5px;
         font-weight: 650;
         box-shadow: none;
       }
@@ -3404,15 +3410,16 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        flex: 1 1 0;
+        flex: 0 0 auto;
         min-width: 0;
-        padding: 5px 9px;
+        padding: 4px 3px;
         border: 1px solid transparent;
         color: var(--text-3);
         font-size: 12px;
         line-height: 1.6;
         text-align: center;
       }
+      .live-student-list > .live-student-empty:only-child { width: 100%; }
 
       .live-campus-actions {
         display: flex;
@@ -3671,21 +3678,22 @@
         .live-campus-title { font-size: 14px; }
         .live-student-list {
           flex-wrap: nowrap;
-          gap: 6px;
+          gap: 4px;
           margin-top: 10px;
-          overflow: hidden;
+          overflow-x: auto;
+          overflow-y: hidden;
         }
         .live-student-chip {
-          flex: 1 1 0;
+          flex: 0 0 auto;
           min-width: 0;
           max-width: none;
-          min-height: 36px;
+          min-height: 28px;
           overflow: hidden;
-          font-size: 11.5px;
+          font-size: 11px;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        .live-student-empty { flex: 1 1 0; font-size: 11px; }
+        .live-student-empty { flex: 0 0 auto; font-size: 11px; }
         .live-campus-actions { margin-top: 8px; }
         .live-campus-disclaimer { font-size: 10.5px; }
         #viewDetailsBtn {
@@ -6968,7 +6976,7 @@
         return leftStart - rightStart;
       });
 
-      const maxVisible = window.matchMedia('(max-width: 640px)').matches ? 2 : 3;
+      const maxVisible = 10;
       sorted.slice(0, maxVisible).forEach(student => {
         const chip = document.createElement('button');
         chip.type = 'button';
@@ -6982,7 +6990,7 @@
       if (sorted.length > maxVisible) {
         const more = document.createElement('span');
         more.className = 'live-student-empty';
-        more.textContent = `另有 ${sorted.length - maxVisible} 人`;
+        more.textContent = `+${sorted.length - maxVisible} 人`;
         container.appendChild(more);
       }
     }
