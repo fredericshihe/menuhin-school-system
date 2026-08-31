@@ -4091,21 +4091,21 @@
                 <span class="ri-dim-label" style="background:rgba(16,185,129,.14);color:#059669">进步榜</span>
                 <div class="ri-dim-content">
                   <div class="ri-dim-title">本周综合分绝对涨分最大 Top 6</div>
-                  <div class="ri-dim-desc">用「本周综合分 − 近期最佳历史周综合分」计算<strong>绝对涨分</strong>。它看的是你这周是不是比自己最近的最好状态更进一步，不是单看谁总时长更夸张。要求：本周工作日练琴 ≥ 2 次，涨分 ≥ 1.0 分，近 10 条工作日记录 ≥ 4 条，近 10 条异常率 ≤ 45%。</div>
+                  <div class="ri-dim-desc">用「本周综合分 − 近期最佳历史周综合分」计算<strong>绝对涨分</strong>。它看的是你这周是不是比自己最近的最好状态更进一步，不是单看谁总时长更夸张。要求：本周工作日练琴 ≥ 2 次，涨分 ≥ 1.0 分，最近 20 条工作日记录 ≥ 4 条，异常率 ≤ 20%。</div>
                 </div>
               </div>
               <div class="ri-dim">
                 <span class="ri-dim-label" style="background:rgba(139,92,246,.14);color:#7c3aed">稳定榜</span>
                 <div class="ri-dim-content">
                   <div class="ri-dim-title">练琴模式最可预测 Top 6</div>
-                  <div class="ri-dim-desc"><strong>α（基线可信度）越高</strong>代表练琴越规律稳定，排名越前；同等 α 时近 10 次工作日均时更长者优先。要求：α ≥ 0.60，近 10 条工作日记录 ≥ 8 条，近 10 条均时 ≥ 30 分钟，近 10 条异常率 ≤ 35%。</div>
+                  <div class="ri-dim-desc"><strong>α（基线可信度）越高</strong>代表练琴越规律稳定，排名越前；同等 α 时，最近 20 条记录的时长波动率越低者优先，均时仅用于最低资格和最后并列。要求：α ≥ 0.60，最近 20 条工作日记录 ≥ 8 条，均时 ≥ 30 分钟，异常率 ≤ 20%。</div>
                 </div>
               </div>
               <div class="ri-dim">
                 <span class="ri-dim-label" style="background:rgba(6,182,212,.14);color:#0891b2">守则榜</span>
                 <div class="ri-dim-content">
                   <div class="ri-dim-title">最遵守练琴规范 Top 6</div>
-                  <div class="ri-dim-desc">近 10 条工作日练琴中<strong>异常率最低</strong>者排前。要求：本周工作日练琴 ≥ 3 次，近 10 条工作日记录 ≥ 5 条，近 10 条均时 ≥ 30 分钟，异常率 ≤ 40%，α ≥ 0.60。</div>
+                  <div class="ri-dim-desc">最近 20 条工作日练琴中<strong>异常率最低</strong>者排前；同等异常率时，本周有效练琴覆盖的不同工作日越多者优先。要求：本周至少 3 个不同工作日有练琴，最近 20 条工作日记录 ≥ 5 条，均时 ≥ 30 分钟，异常率 ≤ 20%，α ≥ 0.60。</div>
                 </div>
               </div>
               <div class="ri-dim">
@@ -4141,7 +4141,7 @@
               </div>
               <div class="ri-tip-item">
                 <span class="ri-tip-icon">📈</span>
-                <div><strong>坚持每周工作日练习</strong> — 周末练琴不纳入排行榜统计；守则榜要求本周 ≥ 3 次，坚持出勤才能保住名次。</div>
+                <div><strong>坚持每周工作日练习</strong> — 周末练琴不纳入排行榜统计；守则榜要求本周至少覆盖 3 个不同工作日，坚持出勤才能保住名次。</div>
               </div>
             </div>
           </div>
@@ -4258,7 +4258,7 @@
 
             <div class="ru-section">
               <div class="ru-label">3 · 参与与刷新</div>
-              <div class="ru-text">仅统计工作日有效记录，还卡后自动刷新。分类榜仍按次数、均时、异常率和 α 筛选。</div>
+              <div class="ru-text">仅统计工作日有效记录，还卡后自动刷新。分类榜按有效练琴日、均时、异常率和 α 进行资格筛选；同一天拆分多次会话不会增加守则榜的有效练琴日。</div>
             </div>
 
             <div class="ru-section">
@@ -13482,8 +13482,8 @@
     const WLB_SUBTITLES = {
       '综合榜': '综合表现前 10 · 稳定达标优先',
       '进步榜': '较近期最佳周进步最多 · 前 6',
-      '稳定榜': '练琴最规律稳定 · 前 6',
-      '守则榜': '异常率最低 · 前 6',
+      '稳定榜': 'α优先 · 时长波动更小 · 前 6',
+      '守则榜': '异常率最低 · 至少 3 个不同工作日 · 前 6',
       '缩水榜': '已开始且进度低于 70% · 越低越靠前 · 前 6 名扣币',
     };
 
@@ -13654,10 +13654,10 @@
         return `<div class="wlb-right"><div class="wlb-val" style="color:${c}">${sign}${gain.toFixed(1)}<span style="font-size:.7em;opacity:.8"> 分</span></div><div class="wlb-val-sub">${label}</div></div>`;
       }
       if (board === '稳定榜') {
-        const dur = Number(row.recent10_mean_dur || row.mean_duration || 0).toFixed(1);
         const al = Number(row.alpha || 0);
-        const durC = Number(dur) >= 60 ? '#34d399' : Number(dur) >= 45 ? '#86efac' : '#93c5fd';
-        return `<div class="wlb-right"><div class="wlb-val" style="color:${durC}">${dur}min</div><div class="wlb-val-sub">α ${al.toFixed(3)}</div></div>`;
+        const dur = Number(row.recent10_mean_dur || row.mean_duration || 0).toFixed(1);
+        const alC = al >= .85 ? '#34d399' : al >= .7 ? '#86efac' : '#93c5fd';
+        return `<div class="wlb-right"><div class="wlb-val" style="color:${alC}">α ${al.toFixed(3)}</div><div class="wlb-val-sub">均时 ${dur}min · 波动小优先</div></div>`;
       }
       if (board === '守则榜') {
         const or = Number(row.recent10_outlier_rate || 0);
