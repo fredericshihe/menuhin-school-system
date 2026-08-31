@@ -13520,6 +13520,16 @@
       (rows || []).forEach(r => {
         (grouped[r.board] || (grouped[r.board] = [])).push(r);
       });
+      Object.values(grouped).forEach(boardRows => {
+        boardRows.sort((a, b) => {
+          const rankA = a?.rank_no == null ? NaN : Number(a.rank_no);
+          const rankB = b?.rank_no == null ? NaN : Number(b.rank_no);
+          const safeRankA = Number.isFinite(rankA) ? rankA : Number.MAX_SAFE_INTEGER;
+          const safeRankB = Number.isFinite(rankB) ? rankB : Number.MAX_SAFE_INTEGER;
+          if (safeRankA !== safeRankB) return safeRankA - safeRankB;
+          return String(a?.student_name || '').localeCompare(String(b?.student_name || ''), 'zh-CN');
+        });
+      });
       return grouped;
     }
 
