@@ -8878,6 +8878,13 @@
       if (source === 'adaptive_increase_sustainable_60pct') {
         return `近期实际练琴比原目标明显提高，参考周均为 <strong>${recentAverageText}</strong>。系统没有一次性把目标追到很高，只把本周目标从 <strong>${formatTargetMinutes(previous)}</strong> 调到 <strong>${formatTargetMinutes(current)}</strong>。`;
       }
+      if (source === 'semester_personal_week_average') {
+        const weeks = Number(data.recent_active_weeks || 0);
+        return `这是你新学期第 ${Math.max(weeks + 1, 2)} 个有效练琴周的目标。系统把新学期开始后你自己的 ${weeks} 个有效练琴周取平均，本周目标按这个周均值设为 <strong>${formatTargetMinutes(current)}</strong>，不是拿别人作比较。`;
+      }
+      if (source === 'carry_forward_before_personal_semester_week') {
+        return `你在新学期还没有新增有效练琴周，系统先保持上一次目标 <strong>${formatTargetMinutes(current)}</strong>。从你自己的第一周有效练琴记录出现后，下一周才会按个人学期周均值更新。`;
+      }
       if (source === 'adaptive_decrease_guarded') {
         return `连续 3 个完整周都有练琴，但都明显低于原目标，因此本周从 <strong>${formatTargetMinutes(previous)}</strong> 小幅调整到 <strong>${formatTargetMinutes(current)}</strong>。目标不会一路降低，也不会低于本学期保护线。`;
       }
@@ -9000,10 +9007,11 @@
             <div class="lb-section__title">以后怎样变化 <span>每周一更新</span></div>
             <div class="lb-card">
               <ul class="target-explain-rules">
-                <li><strong>练得越来越多：</strong>目标可以每周小幅上调，每周最多约 5%，不会突然变得很难。</li>
-                <li><strong>确实需要降低：</strong>只有连续 3 个完整周都有练琴、但持续明显低于目标，才会小幅下调。</li>
-                <li><strong>故意少练或停练：</strong>不会因此降低目标；目标最低也不会低于本学期起始值的 85%。</li>
-                <li><strong>本周已经开始：</strong>目标保持锁定，新增记录只影响下周一的判断。</li>
+                <li><strong>第一周：</strong>新学期开始后，你自己第一次出现有效练琴记录的那一周，算你的第一周，继续使用学期起始目标。</li>
+                <li><strong>第二周开始：</strong>下一周目标等于你截至上一周所有有效练琴周的平均时长；新增一周后，系统再重新计算平均值。</li>
+                <li><strong>没有有效记录：</strong>没有练琴记录的周不计入平均，也不会因为空周把目标自动降得更低。</li>
+                <li><strong>必要保护：</strong>平均值会按 5 分钟取整，并保留本学期起始目标的 85% 最低保护线和每周 25 小时上限。</li>
+                <li><strong>本周已经开始：</strong>目标保持锁定，新增记录只影响下一周的判断。</li>
               </ul>
             </div>
           </div>
