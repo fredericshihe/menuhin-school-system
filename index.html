@@ -8934,7 +8934,6 @@
         const initial = Number(data.initial_target_minutes || current);
         const previous = Number(data.previous_target_minutes || initial);
         const floor = Number(data.protected_floor_minutes || 270);
-        const ratio = Number(data.reference_ratio || 0.60);
         const targetChange = current - previous;
         const referenceAverage = Number(data.reference_average_minutes || 0);
         const personalWeeks = Number(data.personal_history_week_count || 0);
@@ -8961,7 +8960,7 @@
           referenceCopy = `暂时没有可用历史记录，先按学校统一的 <strong>每周 5 小时参考值</strong>计算起始目标。`;
         }
 
-        const limitCopy = `按专业保护范围计算，每周最多调整 5%，并按 5 分钟取整；本周最低保护线为 <strong>${formatTargetMinutes(floor)}</strong>，最高为每周 25 小时。`;
+        const limitCopy = `目标按个人有效周均计算，按 5 分钟取整；本周最低保护线为 <strong>${formatTargetMinutes(floor)}</strong>，最高为每周 25 小时。`;
 
         const body = loadingModal.querySelector('.lb-dialog__body');
         if (!body) return;
