@@ -1184,43 +1184,35 @@
     opacity: .86;
   }
 
-  .target-explain-formula {
+  .target-explain-quick {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: center;
-    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
     margin-top: 10px;
   }
 
-  .target-explain-formula-item {
+  .target-explain-quick-item {
     min-width: 0;
-    padding: 10px;
-    border-radius: 10px;
-    background: color-mix(in oklab, var(--surface-0) 88%, var(--surface-1));
+    padding: 12px 14px;
     border: 1px solid var(--border);
-    text-align: center;
+    border-radius: 12px;
+    background: var(--surface-1);
   }
 
-  .target-explain-formula-item span,
-  .target-explain-formula-item strong {
+  .target-explain-quick-item span,
+  .target-explain-quick-item strong {
     display: block;
   }
 
-  .target-explain-formula-item span {
+  .target-explain-quick-item span {
     color: var(--text-3);
     font-size: 11px;
   }
 
-  .target-explain-formula-item strong {
-    margin-top: 3px;
+  .target-explain-quick-item strong {
+    margin-top: 4px;
     color: var(--text-1);
     font-size: 14px;
-  }
-
-  .target-explain-formula-sign {
-    color: var(--text-3);
-    font-size: 18px;
-    font-weight: 800;
   }
 
   .target-explain-copy {
@@ -1231,6 +1223,10 @@
 
   .target-explain-copy strong {
     color: var(--text-1);
+  }
+
+  .target-explain-copy + .target-explain-copy {
+    margin-top: 8px;
   }
 
   .target-explain-note {
@@ -1244,16 +1240,45 @@
     line-height: 1.65;
   }
 
-  .target-explain-rules {
-    margin: 0;
-    padding-left: 20px;
-    color: var(--text-2);
-    font-size: 13px;
-    line-height: 1.75;
+  .target-explain-steps {
+    display: grid;
+    gap: 12px;
   }
 
-  .target-explain-rules li + li {
-    margin-top: 5px;
+  .target-explain-step {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    color: var(--text-2);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .target-explain-step-number {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: color-mix(in oklab, var(--brand-600) 12%, var(--surface-1));
+    color: var(--brand-600);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .target-explain-step strong {
+    color: var(--text-1);
+  }
+
+  .target-explain-step p {
+    margin: 2px 0 0;
+  }
+
+  @media (max-width: 420px) {
+    .target-explain-quick {
+      grid-template-columns: 1fr;
+    }
   }
 
   @keyframes statusPulse {
@@ -1292,15 +1317,6 @@
     .status-target-meta {
       width: 100%;
       justify-content: space-between;
-    }
-
-    .target-explain-formula {
-      grid-template-columns: 1fr;
-    }
-
-    .target-explain-formula-sign {
-      line-height: 1;
-      transform: rotate(90deg);
     }
 
     .status-hero-duration {
@@ -8875,33 +8891,26 @@
       const recentAverage = Number(data.recent_average_minutes || 0);
       const recentAverageText = recentAverage > 0 ? formatTargetMinutes(recentAverage) : '';
 
-      if (source === 'adaptive_increase_sustainable_60pct') {
-        return `近期实际练琴比原目标明显提高，参考周均为 <strong>${recentAverageText}</strong>。系统没有一次性把目标追到很高，只把本周目标从 <strong>${formatTargetMinutes(previous)}</strong> 调到 <strong>${formatTargetMinutes(current)}</strong>。`;
-      }
       if (source === 'semester_personal_week_average') {
-        const weeks = Number(data.recent_active_weeks || 0);
-        return `这是你新学期第 ${Math.max(weeks + 1, 2)} 个有效练琴周的目标。系统把新学期开始后你自己的 ${weeks} 个有效练琴周取平均，本周目标按这个周均值设为 <strong>${formatTargetMinutes(current)}</strong>，不是拿别人作比较。`;
+        return `新学期个人有效周均为 <strong>${recentAverageText}</strong>，本周目标按这个平均值设为 <strong>${formatTargetMinutes(current)}</strong>。`;
       }
       if (source === 'carry_forward_before_personal_semester_week') {
-        return `你在新学期还没有新增有效练琴周，系统先保持上一次目标 <strong>${formatTargetMinutes(current)}</strong>。从你自己的第一周有效练琴记录出现后，下一周才会按个人学期周均值更新。`;
+        return `新学期还没有新的有效练琴周，本周先保持 <strong>${formatTargetMinutes(current)}</strong>；有了第一周记录后，从下一周开始按个人周均更新。`;
+      }
+      if (recentAverage > 0 && source === 'adaptive_increase_sustainable_60pct') {
+        return `近期个人周均为 <strong>${recentAverageText}</strong>，本周目标从 <strong>${formatTargetMinutes(previous)}</strong> 调整为 <strong>${formatTargetMinutes(current)}</strong>。`;
       }
       if (source === 'adaptive_decrease_guarded') {
-        return `连续 3 个完整周都有练琴，但都明显低于原目标，因此本周从 <strong>${formatTargetMinutes(previous)}</strong> 小幅调整到 <strong>${formatTargetMinutes(current)}</strong>。目标不会一路降低，也不会低于本学期保护线。`;
+        return `近期个人记录偏低，本周目标从 <strong>${formatTargetMinutes(previous)}</strong> 调整为 <strong>${formatTargetMinutes(current)}</strong>。`;
       }
-      if (source === 'adaptive_hold_inactivity_not_rewarded') {
-        return `近期存在停练、缺少完整记录或练琴天数不足，本周继续保持 <strong>${formatTargetMinutes(current)}</strong>。系统不会因为少练或不练，就自动把目标变简单。`;
-      }
-      if (source === 'adaptive_hold_insufficient_evidence') {
-        return `新学期可参考的完整周还不够，本周先保持 <strong>${formatTargetMinutes(current)}</strong>。等有新的完整练琴周后，系统会在下周一重新判断。`;
-      }
-      if (source === 'adaptive_hold_stable_band') {
-        return `近期练琴量在合理范围内，没有持续偏高或持续偏低，本周保持 <strong>${formatTargetMinutes(current)}</strong>，避免目标因一次偶然波动来回变化。`;
+      if (source.startsWith('adaptive_hold')) {
+        return `近期记录没有触发调整，本周保持 <strong>${formatTargetMinutes(current)}</strong>。`;
       }
       if (Math.abs(change) >= 2.5) {
         const direction = change > 0 ? '上调' : '下调';
-        return `根据最近完整周的实际记录，本周目标从 <strong>${formatTargetMinutes(previous)}</strong> ${direction}到 <strong>${formatTargetMinutes(current)}</strong>。`;
+        return `根据个人近期记录，本周目标从 <strong>${formatTargetMinutes(previous)}</strong> ${direction}到 <strong>${formatTargetMinutes(current)}</strong>。`;
       }
-      return `这是本学期当前阶段的起始目标，本周为 <strong>${formatTargetMinutes(current)}</strong>。本周内保持不变，下周一再根据新的完整记录判断。`;
+      return `这是当前阶段的起始目标：<strong>${formatTargetMinutes(current)}</strong>。本周保持不变，下周再更新。`;
     }
 
     async function showWeekTargetExplanation(studentName) {
@@ -8911,7 +8920,7 @@
         <div class="lb-section">
           <div class="lb-card">
             <h4>正在读取 ${safeStudentName} 的目标依据…</h4>
-            <p>将显示实际参考周期、历史周均值和本周调整原因。</p>
+            <p>正在读取个人目标依据。</p>
           </div>
         </div>
       `, '本周目标怎么来的');
@@ -8926,6 +8935,7 @@
         const previous = Number(data.previous_target_minutes || initial);
         const floor = Number(data.protected_floor_minutes || 270);
         const ratio = Number(data.reference_ratio || 0.60);
+        const targetChange = current - previous;
         const referenceAverage = Number(data.reference_average_minutes || 0);
         const personalWeeks = Number(data.personal_history_week_count || 0);
         const peerStudents = Number(data.peer_sample_students || 0);
@@ -8938,21 +8948,25 @@
         const referenceStart = formatTargetExplanationDate(data.reference_period_start);
         const referenceEnd = formatTargetExplanationDate(data.reference_period_end, 4);
 
+        const changeText = targetChange === 0
+          ? '本周保持'
+          : `${targetChange > 0 ? '上调' : '下调'} ${Math.abs(Math.round(targetChange))} 分钟`;
+
         let referenceCopy = '';
         if (referenceKind === 'personal_history') {
-          referenceCopy = `系统参考了 <strong>${referenceStart}至${referenceEnd}</strong> 之间，${safeStudentName} 最近 <strong>${personalWeeks} 个有有效记录的工作周</strong>。这些周平均每周练琴 <strong>${formatTargetMinutes(referenceAverage)}</strong>。`;
+          referenceCopy = `起始目标参考你在 <strong>${referenceStart}至${referenceEnd}</strong> 的 <strong>${personalWeeks} 个有效周</strong>，周均 <strong>${formatTargetMinutes(referenceAverage)}</strong>。`;
         } else if (referenceKind === 'peer_history') {
           const groupLabel = getTargetReferenceGroupLabel(initialSource);
-          referenceCopy = `${safeStudentName} 在这个学习阶段还没有可用的个人历史周，因此参考 <strong>${groupLabel}</strong>：共 <strong>${peerStudents} 人、${referenceWeeks} 个有效周</strong>，范围为 <strong>${referenceStart}至${referenceEnd}</strong>，平均每周 <strong>${formatTargetMinutes(referenceAverage)}</strong>。有了自己的历史记录后，下一学习周期会优先使用个人数据。`;
+          referenceCopy = `暂时没有个人历史，起始目标参考<strong>${groupLabel}</strong>的 <strong>${peerStudents} 人、${referenceWeeks} 个有效周</strong>，周均 <strong>${formatTargetMinutes(referenceAverage)}</strong>。`;
         } else {
-          referenceCopy = `${safeStudentName} 暂时没有个人历史，也没有足够的同组历史样本，因此先使用学校统一的 <strong>每周 5 小时参考值</strong>，再按 60% 设置起始目标。`;
+          referenceCopy = `暂时没有可用历史记录，先按学校统一的 <strong>每周 5 小时参考值</strong>计算起始目标。`;
         }
 
-        let limitCopy = '计算结果按 5 分钟取整。';
+        let limitCopy = `按 5 分钟取整；最低保护线为 <strong>${formatTargetMinutes(floor)}</strong>，最高为每周 25 小时。`;
         if (rawInitial < 270) {
-          limitCopy = '按 60% 计算后低于学校最低目标，因此使用每周 4 小时 30 分钟。';
+          limitCopy = `按 60% 计算低于最低值，本学期起始目标按 <strong>${formatTargetMinutes(initial)}</strong>执行。`;
         } else if (rawInitial > 1500) {
-          limitCopy = '按 60% 计算后超过上限，因此使用每周 25 小时上限。';
+          limitCopy = '按 60% 计算超过上限，本学期起始目标按每周 25 小时执行。';
         }
 
         const body = loadingModal.querySelector('.lb-dialog__body');
@@ -8964,55 +8978,44 @@
               <div class="target-explain-hero-value">${formatTargetMinutes(current)}</div>
               <div class="target-explain-hero-period">适用时间：${weekStart}至${weekEnd}，本周内保持不变</div>
             </div>
-          </div>
-
-          <div class="lb-section">
-            <div class="lb-section__title">这次参考了什么 <span>真实历史记录</span></div>
-            <div class="lb-card">
-              <div class="target-explain-copy">${referenceCopy}</div>
-              <div class="target-explain-note">只统计周一至周五的有效练琴时间；参考最近最多 8 个有记录的周，避免很久以前的数据一直影响现在。</div>
-            </div>
-          </div>
-
-          <div class="lb-section">
-            <div class="lb-section__title">起始目标怎么算 <span>60% 起步</span></div>
-            <div class="target-explain-formula">
-              <div class="target-explain-formula-item">
-                <span>参考周均</span>
-                <strong>${formatTargetMinutes(referenceAverage)}</strong>
-              </div>
-              <div class="target-explain-formula-sign">×</div>
-              <div class="target-explain-formula-item">
-                <span>起步比例</span>
-                <strong>${Math.round(ratio * 100)}%</strong>
-              </div>
-              <div class="target-explain-formula-sign">=</div>
-              <div class="target-explain-formula-item">
-                <span>本学期起始目标</span>
+            <div class="target-explain-quick">
+              <div class="target-explain-quick-item">
+                <span>学期起始目标</span>
                 <strong>${formatTargetMinutes(initial)}</strong>
               </div>
+              <div class="target-explain-quick-item">
+                <span>本周变化</span>
+                <strong>${changeText}</strong>
+              </div>
             </div>
-            <div class="target-explain-note">${limitCopy}</div>
           </div>
 
           <div class="lb-section">
-            <div class="lb-section__title">为什么本周是这个数 <span>${current > previous ? '本周上调' : current < previous ? '本周下调' : '本周保持'}</span></div>
+            <div class="lb-section__title">怎么算 <span>简单三步</span></div>
             <div class="lb-card">
+              <div class="target-explain-steps">
+                <div class="target-explain-step">
+                  <span class="target-explain-step-number">1</span>
+                  <div><strong>新学期第一周</strong><p>先用学期起始目标：个人历史周均 × 60%；没有个人历史，才参考同教研室、同年级。</p></div>
+                </div>
+                <div class="target-explain-step">
+                  <span class="target-explain-step-number">2</span>
+                  <div><strong>从你的第二个有效周开始</strong><p>下一周目标 = 你此前所有新学期有效周的平均时长。</p></div>
+                </div>
+                <div class="target-explain-step">
+                  <span class="target-explain-step-number">3</span>
+                  <div><strong>每周一更新</strong><p>空周不计入平均；只统计周一至周五有效练琴，本周内目标不变。</p></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lb-section">
+            <div class="lb-section__title">本周依据 <span>${current > previous ? '上调' : current < previous ? '下调' : '保持'}</span></div>
+            <div class="lb-card">
+              <div class="target-explain-copy">${referenceCopy}</div>
               <div class="target-explain-copy">${getTargetAdjustmentCopy(data)}</div>
-              <div class="target-explain-note">本学期保护线为 <strong>${formatTargetMinutes(floor)}</strong>；当前规则不会因为一次少练就立即降低目标。</div>
-            </div>
-          </div>
-
-          <div class="lb-section">
-            <div class="lb-section__title">以后怎样变化 <span>每周一更新</span></div>
-            <div class="lb-card">
-              <ul class="target-explain-rules">
-                <li><strong>第一周：</strong>新学期开始后，你自己第一次出现有效练琴记录的那一周，算你的第一周，继续使用学期起始目标。</li>
-                <li><strong>第二周开始：</strong>下一周目标等于你截至上一周所有有效练琴周的平均时长；新增一周后，系统再重新计算平均值。</li>
-                <li><strong>没有有效记录：</strong>没有练琴记录的周不计入平均，也不会因为空周把目标自动降得更低。</li>
-                <li><strong>必要保护：</strong>平均值会按 5 分钟取整，并保留本学期起始目标的 85% 最低保护线和每周 25 小时上限。</li>
-                <li><strong>本周已经开始：</strong>目标保持锁定，新增记录只影响下一周的判断。</li>
-              </ul>
+              <div class="target-explain-note">${limitCopy}</div>
             </div>
           </div>
         `;
