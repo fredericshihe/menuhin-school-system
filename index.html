@@ -4233,7 +4233,7 @@
                 <span class="ri-dim-label" style="background:rgba(16,185,129,.14);color:#059669">进步榜</span>
                 <div class="ri-dim-content">
                   <div class="ri-dim-title">本周综合分绝对涨分最大 Top 6</div>
-                  <div class="ri-dim-desc">用「本周综合分 − 上一个有有效练琴记录的周综合分」计算<strong>绝对涨分</strong>。它看的是这周是否比自己上一个有效周进步，不单看总时长。要求：本周工作日练琴 ≥ 2 次，涨分 ≥ 1.0 分，当前评分周期最近 20 条工作日记录 ≥ 4 条、异常率 ≤ 20%，且不在综合榜前 10 个名额。</div>
+                  <div class="ri-dim-desc">用「本周综合分 − 最近两个有效周综合分的平均值」计算<strong>绝对涨分</strong>。当前周和两个对比周都要有至少 <strong>4 个有效练琴日</strong>，再判断是否上涨 ≥ 1.0 分；同时要求当前评分周期最近 20 条工作日记录 ≥ 4 条、异常率 ≤ 20%，且不在综合榜前 10 个名额。</div>
                 </div>
               </div>
               <div class="ri-dim">
@@ -4254,7 +4254,7 @@
                 <span class="ri-dim-label" style="background:rgba(244,63,94,.14);color:#e11d48">缩水榜</span>
                 <div class="ri-dim-content">
                   <div class="ri-dim-title">本周综合分绝对降分最大 Top 6</div>
-                  <div class="ri-dim-desc">与进步榜使用完全相同的比较口径，方向相反：用「本周综合分 − 上一个有有效练琴记录的周综合分」计算，下降至少 <strong>1.0 分</strong>才进入，降分越多排名越靠前。样本要求也与进步榜一致：本周工作日练琴 ≥ 2 次，当前评分周期最近 20 条工作日记录 ≥ 4 条、异常率 ≤ 20%，且不在综合榜前 10 个名额。前 6 个名额按 <strong>-10 / -6 / -4</strong> 扣币，余额不足可显示负数。</div>
+                  <div class="ri-dim-desc">与进步榜使用完全相同的比较口径，方向相反：用「本周综合分 − 最近两个有效周综合分的平均值」计算，当前周和两个对比周都要有至少 <strong>4 个有效练琴日</strong>，下降至少 <strong>1.0 分</strong>才进入，降分越多排名越靠前。还要求最近 20 条工作日记录 ≥ 4 条、异常率 ≤ 20%，且不在综合榜前 10 个名额。前 6 个名额按 <strong>-10 / -6 / -4</strong> 扣币，余额不足可显示负数。</div>
                 </div>
               </div>
             </div>
@@ -4271,7 +4271,7 @@
               </div>
               <div class="ri-tip-item">
                 <span class="ri-tip-icon">📅</span>
-                <div><strong>本周至少练两次</strong> — 本周没练琴或只练一次，进步榜和缩水榜都不参与排名。</div>
+                <div><strong>每周至少 4 个有效练琴日</strong> — 当前周和比较周都要达到这个门槛，才会参与进步榜和缩水榜。</div>
               </div>
               <div class="ri-tip-item">
                 <span class="ri-tip-icon">🃏</span>
@@ -4370,7 +4370,7 @@
             <div style="background:var(--surface-0); border:1px solid var(--border); border-radius:var(--radius-md); padding:12px 14px; font-size:12.5px; color:var(--text-2); line-height:1.7; margin-bottom:8px;">
               <div style="font-weight:700; color:var(--text-1); margin-bottom:6px;">💡 小提示</div>
               <div>• <strong>综合榜前 10 个名额</strong>不参与进步、稳定、守则和缩水榜；其余同学若同时上多个正向分类榜，奖励<strong>叠加计算</strong></div>
-              <div>• <strong>缩水榜前 6 个名额</strong>按 -10 / -6 / -4 自动扣币；它按综合分相对上一有效周的降分排名，不再按周目标完成率排名</div>
+              <div>• <strong>缩水榜前 6 个名额</strong>按 -10 / -6 / -4 自动扣币；它按综合分相对最近两周均值的降分排名，不再按周目标完成率排名</div>
               <div>• 音符币<strong>仅限本学期使用</strong>，学期结束由琴房管理老师手动全部清零</div>
               <div>• 每周五结算后即可在个人页面查看余额；管理员关闭自动结算开关时，奖励与缩水榜扣币都会暂停</div>
               <div>• ⚠️ 前台管理员对存在<strong>违规练琴记录</strong>的学生有权<strong>扣除</strong>音符币</div>
@@ -4400,7 +4400,7 @@
 
             <div class="ru-section">
               <div class="ru-label">3 · 参与与刷新</div>
-              <div class="ru-text">仅统计工作日有效记录，还卡后自动刷新。缩水榜改为进步榜的反向规则，比较本周与上一有效周综合分，不再只看周目标完成率。</div>
+              <div class="ru-text">仅统计工作日有效记录，还卡后自动刷新。有效周至少有 4 个有效练琴日；缩水榜与进步榜使用最近两周均值的反向比较，不再只看周目标完成率。</div>
             </div>
 
             <div class="ru-section">
@@ -8942,7 +8942,6 @@
         const referenceWeeks = Number(data.reference_week_count || 0);
         const referenceKind = String(data.reference_kind || 'default');
         const initialSource = String(data.initial_calculation_source || '');
-        const rawInitial = referenceAverage * ratio;
         const weekStart = formatTargetExplanationDate(data.week_monday);
         const weekEnd = formatTargetExplanationDate(data.week_monday, 6);
         const referenceStart = formatTargetExplanationDate(data.reference_period_start);
@@ -8954,7 +8953,7 @@
 
         let referenceCopy = '';
         if (referenceKind === 'personal_history') {
-          referenceCopy = `起始目标参考你在 <strong>${referenceStart}至${referenceEnd}</strong> 的 <strong>${personalWeeks} 个有效周</strong>，周均 <strong>${formatTargetMinutes(referenceAverage)}</strong>。`;
+          referenceCopy = `起始目标参考你在 <strong>${referenceStart}至${referenceEnd}</strong> 的 <strong>${personalWeeks} 个有效周</strong>，每个有效周都有至少 4 个有效练琴日，周均 <strong>${formatTargetMinutes(referenceAverage)}</strong>。`;
         } else if (referenceKind === 'peer_history') {
           const groupLabel = getTargetReferenceGroupLabel(initialSource);
           referenceCopy = `暂时没有个人历史，起始目标参考<strong>${groupLabel}</strong>的 <strong>${peerStudents} 人、${referenceWeeks} 个有效周</strong>，周均 <strong>${formatTargetMinutes(referenceAverage)}</strong>。`;
@@ -8962,12 +8961,7 @@
           referenceCopy = `暂时没有可用历史记录，先按学校统一的 <strong>每周 5 小时参考值</strong>计算起始目标。`;
         }
 
-        let limitCopy = `按 5 分钟取整；最低保护线为 <strong>${formatTargetMinutes(floor)}</strong>，最高为每周 25 小时。`;
-        if (rawInitial < 270) {
-          limitCopy = `按 60% 计算低于最低值，本学期起始目标按 <strong>${formatTargetMinutes(initial)}</strong>执行。`;
-        } else if (rawInitial > 1500) {
-          limitCopy = '按 60% 计算超过上限，本学期起始目标按每周 25 小时执行。';
-        }
+        const limitCopy = `按专业保护范围计算，每周最多调整 5%，并按 5 分钟取整；本周最低保护线为 <strong>${formatTargetMinutes(floor)}</strong>，最高为每周 25 小时。`;
 
         const body = loadingModal.querySelector('.lb-dialog__body');
         if (!body) return;
@@ -9000,11 +8994,11 @@
                 </div>
                 <div class="target-explain-step">
                   <span class="target-explain-step-number">2</span>
-                  <div><strong>从你的第二个有效周开始</strong><p>下一周目标 = 你此前所有新学期有效周的平均时长。</p></div>
+                  <div><strong>从你的第二个有效周开始</strong><p>下一周目标 = 你此前所有新学期有效周的平均时长；每个有效周至少有 4 个有效练琴日。</p></div>
                 </div>
                 <div class="target-explain-step">
                   <span class="target-explain-step-number">3</span>
-                  <div><strong>每周一更新</strong><p>空周不计入平均；只统计周一至周五有效练琴，本周内目标不变。</p></div>
+                  <div><strong>每周一更新</strong><p>空周或不足 4 个有效练琴日的周不计入平均；只统计周一至周五，本周内目标不变。</p></div>
                 </div>
               </div>
             </div>
@@ -11787,7 +11781,7 @@
           maxRatio: 0.5,       // 相对提升上限（50%→满8分）
           denomFloor: 80,      // 小分母防护
           minPrevTotal: 40,    // 前窗口每个有效记录的最低分数要求
-          minActiveDaysPerWindow: 2, // 数据充足门槛：近/前各5个工作日内，有效天数≥2
+          minActiveDaysPerWindow: 4, // 数据充足门槛：近/前各5个工作日内，有效天数≥4
           windowSize: 5        // 工作日窗口（原7改5）
         },
         consistency: {
@@ -13836,10 +13830,10 @@
 
     const WLB_SUBTITLES = {
       '综合榜': '综合表现前 10 个名额 · 并列按人数计',
-      '进步榜': '较上一有效周综合分上升 ≥ 1.0 · 前 6 个名额',
+      '进步榜': '较最近两周均值上升 ≥ 1.0 · 有效周至少4天 · 前 6 个名额',
       '稳定榜': '练琴最规律稳定 · 前 6 个名额',
       '守则榜': '异常率最低 · 前 6 个名额',
-      '缩水榜': '较上一有效周综合分下降 ≥ 1.0 · 前 6 个名额扣币',
+      '缩水榜': '较最近两周均值下降 ≥ 1.0 · 有效周至少4天 · 前 6 个名额扣币',
     };
 
     const WLB_MAJ_SHORT = m => {
