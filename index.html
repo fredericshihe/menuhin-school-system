@@ -1173,9 +1173,25 @@
 
   .target-explain-hero-value {
     margin-top: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 8px;
     font-size: 30px;
     font-weight: 850;
     letter-spacing: -.04em;
+  }
+
+  .target-explain-hero-main,
+  .target-explain-hero-unit {
+    white-space: nowrap;
+  }
+
+  .target-explain-hero-unit {
+    font-size: .58em;
+    font-weight: 750;
+    letter-spacing: -.02em;
+    opacity: .88;
   }
 
   .target-explain-hero-period {
@@ -4082,6 +4098,426 @@
       }
     </style>
 
+  <style>
+    /* 详情页移动端布局：单列、紧凑、保持信息层级 */
+    @media (max-width: 640px) {
+      body { overflow-x: hidden; }
+
+      .detail-view {
+        width: 100%;
+        min-width: 0;
+        overflow-x: hidden;
+      }
+
+      .detail-container {
+        width: 100%;
+        max-width: none;
+      }
+
+      .detail-header {
+        min-height: 64px;
+        padding: calc(10px + var(--safe-top)) 14px 10px;
+        gap: 10px;
+      }
+
+      .detail-header .back-btn {
+        flex: 0 0 auto;
+        height: 40px;
+        padding: 0 13px;
+        border-radius: 12px;
+        font-size: 16px;
+      }
+
+      .detail-title {
+        min-width: 0;
+        overflow: hidden;
+        font-size: 20px;
+        line-height: 28px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .detail-content {
+        width: 100%;
+        margin-left: 0 !important;
+        padding: 14px 12px calc(24px + var(--safe-bottom));
+        gap: 14px;
+      }
+
+      .info-card,
+      .timeline-card,
+      .history-card {
+        width: 100%;
+        padding: 16px !important;
+        border-radius: 18px !important;
+      }
+
+      .history-card { overflow: hidden; }
+
+      .info-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 12px;
+      }
+
+      .student-info {
+        min-width: 0;
+      }
+
+      .student-info > div:first-child {
+        gap: 8px !important;
+        margin-bottom: 6px !important;
+        flex-wrap: wrap;
+      }
+
+      .student-info h2 {
+        max-width: 100%;
+        font-size: 26px;
+        line-height: 1.15;
+      }
+
+      .student-meta {
+        flex-wrap: wrap;
+        gap: 6px;
+        font-size: 14px;
+        line-height: 20px;
+      }
+
+      .coin-badge-detail {
+        padding: 4px 9px;
+        font-size: 13px;
+      }
+
+      .score-cards-container {
+        min-width: 104px;
+        margin: 0;
+        justify-content: flex-end;
+        gap: 0;
+      }
+
+      .score-card {
+        width: 104px;
+        min-width: 104px;
+        padding: 8px;
+        border-radius: 12px;
+      }
+
+      .score-title,
+      .score-meta {
+        white-space: nowrap;
+      }
+
+      .score-title { font-size: 11px; }
+      .score-value { font-size: 21px; }
+      .score-meta { font-size: 10px; }
+
+      .status-card {
+        border-radius: 20px !important;
+      }
+
+      .status-hero {
+        padding: 18px 16px 17px;
+        border-radius: 20px 20px 0 0;
+        overflow: hidden;
+      }
+
+      .status-hero-top {
+        align-items: center;
+        margin-bottom: 14px;
+      }
+
+      .status-hero-title { font-size: 16px; }
+      .status-room-pill { max-width: 55%; }
+
+      .status-hero-main { width: 100%; }
+      .status-hero-caption { font-size: 15px; }
+
+      .status-hero-duration {
+        gap: 10px;
+        font-size: clamp(36px, 12vw, 48px);
+      }
+
+      .status-hero-meta {
+        margin-top: 8px;
+        font-size: 12px;
+      }
+
+      .status-hero-source-note {
+        max-width: 100%;
+        margin-top: 8px;
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .status-body {
+        padding: 18px 16px 18px;
+      }
+
+      .status-section + .status-section {
+        margin-top: 18px;
+        padding-top: 18px;
+      }
+
+      .status-section-head {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .status-section-title {
+        min-width: 0;
+        gap: 7px;
+        font-size: 15px;
+        white-space: nowrap;
+      }
+
+      .status-icon {
+        width: 17px;
+        height: 17px;
+      }
+
+      .status-badge {
+        flex: 0 0 auto;
+        min-height: 26px;
+        padding: 4px 8px;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+
+      .status-progress-rate {
+        flex: 0 0 auto;
+        font-size: 18px;
+      }
+
+      .status-progress-track { height: 10px; }
+
+      .status-progress-meta {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        margin-top: 9px;
+        font-size: 13px;
+      }
+
+      .status-progress-meta > div,
+      .status-target-meta,
+      .status-target-meta > span {
+        min-width: 0;
+        white-space: nowrap;
+      }
+
+      .status-target-meta {
+        width: auto;
+        flex: 0 0 auto;
+        gap: 7px;
+        justify-content: flex-end;
+      }
+
+      .status-target-explain-btn {
+        width: auto;
+        min-width: 0;
+        height: 30px;
+        min-height: 30px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        line-height: 1;
+        white-space: nowrap;
+      }
+
+      .status-target-explain-btn span {
+        font-size: 14px;
+        line-height: 1;
+      }
+
+      .status-source-note {
+        margin-top: 14px;
+        padding: 10px;
+        gap: 8px;
+        font-size: 11px;
+      }
+
+      .status-source-note-icon {
+        width: 18px;
+        height: 18px;
+      }
+
+      .timeline-head {
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .timeline-title-wrap {
+        min-width: 0;
+        flex: 1 1 auto;
+        gap: 7px;
+        flex-wrap: nowrap;
+      }
+
+      .timeline-title-wrap h3,
+      .history-head h3 {
+        min-width: 0;
+        overflow: hidden;
+        font-size: 17px;
+        line-height: 24px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .source-chip {
+        flex: 0 0 auto;
+        height: 22px;
+        padding: 2px 7px;
+        font-size: 10.5px;
+      }
+
+      .timeline-actions {
+        flex: 0 0 auto;
+      }
+
+      .timeline-actions .btn {
+        width: 34px;
+        min-width: 34px;
+        height: 34px;
+        padding: 0;
+        border-radius: 10px;
+        font-size: 16px;
+      }
+
+      .timeline-actions .btn > span:last-child { display: none; }
+
+      .timeline-item {
+        min-width: 0;
+        gap: 8px;
+        margin-left: 6px;
+        padding: 11px 8px 11px 13px;
+      }
+
+      .timeline-time {
+        min-width: 0;
+        font-size: 14px;
+        white-space: nowrap;
+      }
+
+      .timeline-duration {
+        min-width: 0;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .timeline-room {
+        flex: 0 0 auto;
+        padding: 3px 7px !important;
+        font-size: 11px !important;
+        white-space: nowrap;
+      }
+
+      .history-head {
+        min-width: 0;
+        flex-wrap: nowrap;
+        gap: 7px;
+        margin-bottom: 12px;
+      }
+
+      .week-chart { padding-top: 10px; }
+      .chart-container { height: 128px; gap: 6px; padding: 0 2px; }
+      .bar-value { font-size: 10px; }
+      .bar-label { font-size: 11px; }
+
+      .lb-modal {
+        padding: 12px;
+      }
+
+      .lb-dialog {
+        width: 100%;
+        max-width: 560px;
+        max-height: calc(100dvh - 24px);
+        border-radius: 20px;
+      }
+
+      .lb-dialog__body {
+        min-height: 0;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .lb-dialog__header {
+        min-height: 56px;
+        padding: 14px 16px;
+      }
+
+      .lb-dialog__body {
+        padding: 14px 16px 18px;
+      }
+
+      .target-explain-hero {
+        padding: 16px;
+        border-radius: 16px;
+      }
+
+      .target-explain-hero-value {
+        font-size: clamp(25px, 7vw, 30px);
+        line-height: 1.25;
+        word-break: break-word;
+      }
+
+      .target-explain-hero-period {
+        line-height: 1.5;
+      }
+
+      .target-explain-quick {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .target-explain-quick-item {
+        min-height: 56px;
+        padding: 10px 11px;
+      }
+
+      .target-explain-copy,
+      .target-explain-step {
+        font-size: 12.5px;
+        line-height: 1.6;
+      }
+
+      .target-explain-steps { gap: 10px; }
+    }
+
+    @media (max-width: 360px) {
+      .detail-content { padding-inline: 10px; }
+      .info-card,
+      .timeline-card,
+      .history-card { padding: 14px !important; }
+      .info-head { gap: 8px; }
+      .student-info h2 { font-size: 24px; }
+      .score-cards-container,
+      .score-card { min-width: 94px; width: 94px; }
+      .score-card { padding-inline: 6px; }
+      .score-value { font-size: 19px; }
+      .status-hero { padding-inline: 14px; }
+      .status-body { padding-inline: 14px; }
+      .status-section-title { font-size: 14px; }
+      .status-progress-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        font-size: 12px;
+      }
+      .status-target-meta {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .timeline-title-wrap h3,
+      .history-head h3 { font-size: 16px; }
+      .target-explain-quick { grid-template-columns: 1fr; }
+      .target-explain-hero-value { font-size: 24px; }
+    }
+  </style>
 </head>
 <body>
   <main class="container">
@@ -4539,7 +4975,7 @@
                 <span class="source-chip">占用时段</span>
               </div>
               <div class="timeline-actions">
-                <button class="btn btn--sm btn--ghost" id="viewWeekSlotsBtn" title="查看每周时段">🗓 查看周时段</button>
+                <button class="btn btn--sm btn--ghost" id="viewWeekSlotsBtn" title="查看每周时段"><span aria-hidden="true">🗓</span><span>周时段</span></button>
               </div>
             </div>
             <div class="timeline-container" id="todayTimeline">
@@ -4639,6 +5075,13 @@
     window.practiceLogsData.push(row);
     if(!Array.isArray(appState.practiceLogs)) appState.practiceLogs = [];
     appState.practiceLogs.push(row);
+    const logDate = new Date(norm.timestamp);
+    if (Number.isFinite(logDate.getTime())) {
+      const indexKey = `${norm.student_name}|${utils.getDateKey(logDate)}`;
+      const indexedRows = practiceLogIndex.get(indexKey) || [];
+      indexedRows.push(row);
+      practiceLogIndex.set(indexKey, indexedRows);
+    }
     if(!Array.isArray(appState.practiceLogsNormalized)) appState.practiceLogsNormalized = [];
     appState.practiceLogsNormalized.push(norm);
 
@@ -4939,6 +5382,10 @@
     
     window.addEventListener('offline', () => {
       dbg('网络已断开，进入离线模式');
+      const cancelled = cancelFullSync('network-offline');
+      if (cancelled && typeof markPendingVisibilityRefresh === 'function') {
+        markPendingVisibilityRefresh('full-sync-cancelled');
+      }
       clearRealtimeReconnectTimer();
       healthMonitor?.stopMonitoring?.();
       // 延迟执行以确保 setConnectionStatus 函数已定义
@@ -4993,6 +5440,10 @@
     // ==== 配置和常量 ====
     const SUPABASE_URL = 'https://waesizzoqodntrlvrwhw.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhZXNpenpvcW9kbnRybHZyd2h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc4MjIyOTYsImV4cCI6MjA3MzM5ODI5Nn0.kE5gSV68q1nLo4z2IqgwqfTBVqNOJw5qs08f6r0SQH0';
+    const SUPABASE_REQUEST_TIMEOUT_MS = 15000;
+    const CORE_SYNC_REQUEST_TIMEOUT_MS = 12000;
+    const CORE_SYNC_CACHE_KEY = 'menuhin_growth_center_sync_v1';
+    const CORE_SYNC_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
     // 休息时间配置 - 剔除大课间、午餐、晚餐等休息时间
     const BREAK_SCHEDULE = {
       monTueThuFri: [
@@ -5042,6 +5493,12 @@
     let supabaseClient = null;
     let realtimeChannel = null;
     let isConnected = false;
+    let fullSyncPromise = null;
+    let fullSyncController = null;
+    let practiceLogIndex = new Map();
+    let isCoreDataReady = false;
+    let diffSyncPromise = null;
+    const pendingDiffTables = new Set();
 
     const appState = {
       students: new Map(), // studentName -> StudentData
@@ -5582,9 +6039,10 @@
     }
 
     // ==== Supabase 初始化 ====
-    async function initializeSupabase() {
+    async function initializeSupabase(options = {}) {
+      const { silentStatus = false } = options;
       try {
-        setConnectionStatus('syncing', '连接中...');
+        if (!silentStatus) setConnectionStatus('syncing', '连接中...');
         
         // 尝试加载 Supabase
         if (!window.supabase && !window.Supabase) {
@@ -5596,30 +6054,44 @@
           throw new Error('Supabase 库未找到');
         }
         
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+          global: { fetch: fetchWithSupabaseTimeout }
+        });
         isConnected = true;
-        setConnectionStatus('online', '已连接');
+        if (!silentStatus) setConnectionStatus('online', '已连接');
         
         return true;
       } catch (error) {
         console.error('Supabase 初始化失败:', error);
-        setConnectionStatus('offline', '连接失败');
+        setConnectionStatus('offline', silentStatus ? '连接失败 · 使用缓存' : '连接失败');
         return false;
       }
     }
 
     function loadSupabaseScript() {
       return new Promise((resolve, reject) => {
+        let settled = false;
+        const timeoutId = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(createSyncError('SyncTimeoutError', 'Supabase SDK 加载超时'));
+        }, SUPABASE_REQUEST_TIMEOUT_MS);
+        const finish = (handler, value) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          handler(value);
+        };
         const script = document.createElement('script');
         // 优先使用本地文件，彻底避免 CDN 加载慢的问题
         script.src = 'libs/supabase.min.js';
-        script.onload = resolve;
+        script.onload = () => finish(resolve);
         script.onerror = () => {
           // 本地文件失败时才回退到 CDN
           const fallbackScript = document.createElement('script');
           fallbackScript.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-          fallbackScript.onload = resolve;
-          fallbackScript.onerror = reject;
+          fallbackScript.onload = () => finish(resolve);
+          fallbackScript.onerror = error => finish(reject, error);
           document.head.appendChild(fallbackScript);
         };
         document.head.appendChild(script);
@@ -5634,20 +6106,116 @@
       statusEl.querySelector('span').textContent = text;
     }
 
+    function createSyncError(name, message) {
+      const error = new Error(message);
+      error.name = name;
+      return error;
+    }
+
+    async function runSupabaseRequest(buildQuery, options = {}) {
+      const {
+        signal = null,
+        label = 'Supabase 请求',
+        timeoutMs = SUPABASE_REQUEST_TIMEOUT_MS
+      } = options;
+      if (signal?.aborted) throw createSyncError('SyncAbortError', `${label} 已取消`);
+
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      let timeoutId = null;
+      let parentAbortHandler = null;
+      let timeoutTriggered = false;
+      let request;
+
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          timeoutTriggered = true;
+          controller?.abort();
+          reject(createSyncError('SyncTimeoutError', `${label}超时`));
+        }, timeoutMs);
+      });
+
+      const parentAbortPromise = signal
+        ? new Promise((_, reject) => {
+            parentAbortHandler = () => {
+              controller?.abort();
+              reject(createSyncError('SyncAbortError', `${label} 已取消`));
+            };
+            signal.addEventListener('abort', parentAbortHandler, { once: true });
+          })
+        : null;
+
+      try {
+        request = buildQuery(controller?.signal);
+        if (controller && request && typeof request.abortSignal === 'function') {
+          request = request.abortSignal(controller.signal);
+        }
+        const requestPromise = Promise.resolve(request);
+        const races = [requestPromise, timeoutPromise];
+        if (parentAbortPromise) races.push(parentAbortPromise);
+        return await Promise.race(races);
+      } catch (error) {
+        if (timeoutTriggered) throw error;
+        if (signal?.aborted) throw createSyncError('SyncAbortError', `${label} 已取消`);
+        throw error;
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (signal && parentAbortHandler) signal.removeEventListener('abort', parentAbortHandler);
+      }
+    }
+
+    function fetchWithSupabaseTimeout(input, init = {}) {
+      if (typeof AbortController !== 'function') return window.fetch(input, init);
+      const controller = new AbortController();
+      const externalSignal = init.signal;
+      let timeoutId = null;
+      let externalAbortHandler = null;
+      let timedOut = false;
+
+      if (externalSignal) {
+        if (externalSignal.aborted) controller.abort(externalSignal.reason);
+        else {
+          externalAbortHandler = () => controller.abort(externalSignal.reason);
+          externalSignal.addEventListener('abort', externalAbortHandler, { once: true });
+        }
+      }
+
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, SUPABASE_REQUEST_TIMEOUT_MS);
+
+      return window.fetch(input, { ...init, signal: controller.signal })
+        .catch(error => {
+          if (timedOut) throw createSyncError('SyncTimeoutError', 'Supabase 请求超时');
+          throw error;
+        })
+        .finally(() => {
+          clearTimeout(timeoutId);
+          if (externalSignal && externalAbortHandler) {
+            externalSignal.removeEventListener('abort', externalAbortHandler);
+          }
+        });
+    }
+
     // 通用：分页获取整表/大结果集（避免 1000 行上限）
-    async function fetchAllRowsPaginated({ table, select = '*', orderBy = 'id', ascending = true, pageSize = 1000, apply }) {
+    async function fetchAllRowsPaginated({ table, select = '*', orderBy = 'id', ascending = true, pageSize = 1000, apply, signal, timeoutMs = CORE_SYNC_REQUEST_TIMEOUT_MS }) {
       if (!supabaseClient) throw new Error('Supabase 未初始化');
       const all = [];
       let from = 0;
       while (true) {
-        let query = supabaseClient
-          .from(table)
-          .select(select)
-          .order(orderBy, { ascending });
-        if (typeof apply === 'function') {
-          query = apply(query);
-        }
-        const { data, error } = await query.range(from, from + pageSize - 1);
+        const { data, error } = await runSupabaseRequest((requestSignal) => {
+          let query = supabaseClient
+            .from(table)
+            .select(select)
+            .order(orderBy, { ascending });
+          if (typeof apply === 'function') query = apply(query);
+          if (requestSignal && typeof query.abortSignal === 'function') query = query.abortSignal(requestSignal);
+          return query.range(from, from + pageSize - 1);
+        }, {
+          signal,
+          timeoutMs,
+          label: `${table} 第${Math.floor(from / pageSize) + 1}页`
+        });
         if (error) throw error;
         const batch = data || [];
         all.push(...batch);
@@ -5657,6 +6225,78 @@
       }
       dbg(`[分页] ${table} 合计加载 ${all.length} 行`);
       return all;
+    }
+
+    function rebuildPracticeLogIndex(logs) {
+      practiceLogIndex = new Map();
+      (Array.isArray(logs) ? logs : []).forEach(log => {
+        const studentName = utils.normalizeStudentName(getLogStudentName(log));
+        const timestamp = new Date(log?.timestamp);
+        if (!studentName || !Number.isFinite(timestamp.getTime())) return;
+        const dateKey = utils.getDateKey(timestamp);
+        const key = `${studentName}|${dateKey}`;
+        const rows = practiceLogIndex.get(key) || [];
+        rows.push(log);
+        practiceLogIndex.set(key, rows);
+      });
+    }
+
+    function getPracticeLogsForDate(studentName, dateKey) {
+      const normalizedName = utils.normalizeStudentName(studentName);
+      if (!normalizedName || !dateKey) return [];
+      return practiceLogIndex.get(`${normalizedName}|${dateKey}`) || [];
+    }
+
+    function trimSyncCacheRows(rows, maxRows) {
+      if (!Array.isArray(rows)) return [];
+      return rows.length > maxRows ? rows.slice(-maxRows) : rows;
+    }
+
+    function saveCoreSyncCache({ logsData, studentsData, slotsData, roomsData }) {
+      try {
+        const payload = {
+          version: 1,
+          savedAt: Date.now(),
+          practiceLogs: trimSyncCacheRows(logsData, 6000),
+          studentDatabase: Array.isArray(studentsData) ? studentsData : [],
+          studentTimeSlots: Array.isArray(slotsData) ? slotsData : [],
+          rooms: Array.isArray(roomsData) ? roomsData : []
+        };
+        let serialized = JSON.stringify(payload);
+        if (serialized.length > 4500000) {
+          payload.practiceLogs = trimSyncCacheRows(logsData, 2500);
+          serialized = JSON.stringify(payload);
+        }
+        localStorage.setItem(CORE_SYNC_CACHE_KEY, serialized);
+      } catch (error) {
+        dbg('[同步缓存] 保存失败:', error?.message || error);
+      }
+    }
+
+    function restoreCoreSyncCache() {
+      try {
+        const raw = localStorage.getItem(CORE_SYNC_CACHE_KEY);
+        if (!raw) return false;
+        const payload = JSON.parse(raw);
+        const savedAt = Number(payload?.savedAt);
+        if (payload?.version !== 1 || !Number.isFinite(savedAt) || Date.now() - savedAt > CORE_SYNC_CACHE_MAX_AGE_MS) {
+          localStorage.removeItem(CORE_SYNC_CACHE_KEY);
+          return false;
+        }
+        if (!Array.isArray(payload.practiceLogs) || !Array.isArray(payload.studentDatabase) ||
+            !Array.isArray(payload.studentTimeSlots) || !Array.isArray(payload.rooms)) return false;
+
+        window.practiceLogsData = payload.practiceLogs;
+        window.studentDatabaseData = payload.studentDatabase;
+        window.studentTimeSlotsData = payload.studentTimeSlots;
+        window.roomsData = payload.rooms;
+        if (processAllData() === false) return false;
+        isCoreDataReady = true;
+        return true;
+      } catch (error) {
+        dbg('[同步缓存] 恢复失败:', error?.message || error);
+        return false;
+      }
     }
 
     // ✅ 数据完整性综合检查函数
@@ -5858,7 +6498,38 @@
     
     // 差异同步特定表数据
     async function fetchDataWithDiff(tables) {
+      const tableList = Array.isArray(tables) ? tables : [tables];
+      tableList.filter(Boolean).forEach(table => pendingDiffTables.add(table));
+      if (diffSyncPromise) return diffSyncPromise;
+
+      diffSyncPromise = (async () => {
+        while (pendingDiffTables.size) {
+          const batch = Array.from(pendingDiffTables);
+          pendingDiffTables.clear();
+          if (fullSyncPromise) {
+            await fullSyncPromise;
+            continue;
+          }
+          await fetchDataWithDiffBatch(batch);
+        }
+      })().catch(error => {
+        console.warn('[差异同步] 已结束但未完成:', error?.message || error);
+        return false;
+      }).finally(() => {
+        diffSyncPromise = null;
+        if (pendingDiffTables.size && isConnected && navigator.onLine && !document.hidden) {
+          setTimeout(() => { void fetchDataWithDiff([]); }, 1000);
+        }
+      });
+      return diffSyncPromise;
+    }
+
+    async function fetchDataWithDiffBatch(tables) {
       if (!isConnected) return;
+      if (fullSyncPromise) {
+        await fullSyncPromise;
+        return;
+      }
       
       const tablesToSync = Array.isArray(tables) ? tables : [tables];
       let hasChanges = false;
@@ -5884,10 +6555,12 @@
               break;
               
             case 'student_database':
-              const result = await supabaseClient
+              const result = await runSupabaseRequest(() => supabaseClient
                 .from('student_database')
                 .select('id, name, major, grade, archived, remark, created_at, updated_at')
-                .eq('archived', false); // 只同步未归档学生
+                .eq('archived', false), {
+                  label: 'student_database 差异同步'
+                });
               data = result.data;
               if (result.error) {
                 console.error('student_database差异同步错误:', result.error);
@@ -5906,9 +6579,11 @@
               break;
               
             case 'rooms':
-              const roomsResult = await supabaseClient
+              const roomsResult = await runSupabaseRequest(() => supabaseClient
                 .from('rooms')
-                .select('name, piano_type, location, remark, heartbeat_at, version, updated_at, occupant_student_name, register_time');
+                .select('name, piano_type, location, remark, heartbeat_at, version, updated_at, occupant_student_name, register_time'), {
+                  label: 'rooms 差异同步'
+                });
               data = roomsResult.data;
               if (roomsResult.error) {
                 console.error('rooms差异同步错误:', roomsResult.error);
@@ -5969,6 +6644,7 @@
         // ✅ 差异同步数据处理 - 与fetchAllData保持一致的处理逻辑
         if (window.practiceLogsData) {
           appState.practiceLogs = window.practiceLogsData;
+          rebuildPracticeLogIndex(appState.practiceLogs);
           
           // 📝 标准化练琴日志（与fetchAllData保持一致）
           appState.practiceLogsNormalized = appState.practiceLogs.map(r => {
@@ -6098,26 +6774,27 @@
           // 如果连续多次无变化，降低更新频率
           if (consecutiveNoChangeCount >= 5) {
             dbg('连续无变化，跳过UI更新');
-            return;
+            return true;
           }
         }
-        
+        return true;
       } catch (error) {
         console.error('数据处理失败:', error);
         setConnectionStatus('offline', '处理失败');
+        return false;
       }
     }
     
     // ==== 原始数据获取函数（完整同步） ====
-    async function fetchAllData() {
+    async function fetchAllDataFromServer({ signal = null, silentStatus = false } = {}) {
       dbg('=== fetchAllData 开始执行 ===');
       if (!isConnected) {
         dbg('fetchAllData: 连接未建立，跳过');
-        return;
+        return false;
       }
       
       try {
-        setConnectionStatus('syncing', '同步数据...');
+        if (!silentStatus) setConnectionStatus('syncing', '同步数据...');
         dbg('开始 Supabase 查询...');
         
         const now = Date.now();
@@ -6132,25 +6809,35 @@
             orderBy: 'timestamp',
             ascending: true,
             pageSize: 1000,
+            signal,
             apply: (q) => q.gte('timestamp', new Date(weekAgo).toISOString())
           }),
           // 👥 student_database: 获取学生基本信息（排除已归档学生）
-          supabaseClient
+          runSupabaseRequest(() => supabaseClient
             .from('student_database')
             .select('id, name, major, grade, archived, remark, created_at, updated_at')
-            .eq('archived', false), // 只获取未归档的学生
+            .eq('archived', false), {
+              signal,
+              label: 'student_database 同步',
+              timeoutMs: CORE_SYNC_REQUEST_TIMEOUT_MS
+            }),
           // ⏰ student_time_slots: 获取完整时间段配置
           fetchAllRowsPaginated({
             table: 'student_time_slots',
             select: 'id, weekday, start_time, end_time, duration_minutes, created_at, student_name, updated_at',
             orderBy: 'id',
             ascending: true,
-            pageSize: 1000
+            pageSize: 1000,
+            signal
           }),
           // 📊 rooms: 获取完整房间信息
-          supabaseClient
+          runSupabaseRequest(() => supabaseClient
             .from('rooms')
-            .select('name, piano_type, location, remark, heartbeat_at, version, updated_at, occupant_student_name, register_time')
+            .select('name, piano_type, location, remark, heartbeat_at, version, updated_at, occupant_student_name, register_time'), {
+              signal,
+              label: 'rooms 同步',
+              timeoutMs: CORE_SYNC_REQUEST_TIMEOUT_MS
+            })
         ]);
 
         if (metaResult && metaResult.error) {
@@ -6171,6 +6858,13 @@
         window.studentDatabaseData = metaResult.data || [];
         window.studentTimeSlotsData = slotsData || [];
         window.roomsData = roomsResult.data || [];
+        const cachePayload = {
+          logsData: window.practiceLogsData,
+          studentsData: window.studentDatabaseData,
+          slotsData: window.studentTimeSlotsData,
+          roomsData: window.roomsData
+        };
+        setTimeout(() => saveCoreSyncCache(cachePayload), 0);
         
         // 更新版本信息
         needsDataUpdate('practice_logs', window.practiceLogsData);
@@ -6180,6 +6874,7 @@
         
         // ✅ 数据完整性验证和处理
         appState.practiceLogs = logsData || [];
+        rebuildPracticeLogIndex(appState.practiceLogs);
         
         // 📝 练琴日志数据验证和标准化
         if(!Array.isArray(appState.practiceLogsNormalized)) appState.practiceLogsNormalized = [];
@@ -6347,6 +7042,7 @@
         dbg(`📊 房间状态统计: 总计${roomsData.length}间, 有效${validRooms}间, 占用${occupiedRooms}间`);
         
         // 分析数据并生成学生状态
+        isCoreDataReady = true;
         analyzeStudentData(roomsData);
         
         // 智能同步：检查数据是否真正发生变化再更新排行榜
@@ -6363,12 +7059,44 @@
         }
         
         setConnectionStatus('online', '已连接');
+        return true;
         
       } catch (error) {
         console.error('数据获取失败:', error);
-        try { showToast('数据获取失败: '+ (error && error.message ? error.message : '未知错误')); } catch(_){}
-        setConnectionStatus('offline', '同步失败');
+        const isTimeout = error?.name === 'SyncTimeoutError';
+        const isCancelled = error?.name === 'SyncAbortError';
+        if (!isCancelled) {
+          try { showToast(isTimeout ? '同步超时，已保留当前数据' : '数据获取失败: '+ (error && error.message ? error.message : '未知错误')); } catch(_){}
+          setConnectionStatus('offline', isTimeout ? '同步超时 · 保留当前数据' : '同步失败');
+        }
+        throw error;
       }
+    }
+
+    async function fetchAllData(options = {}) {
+      if (!isConnected) return false;
+      if (fullSyncPromise) {
+        dbg('[同步] 已有完整同步进行中，复用当前请求');
+        return fullSyncPromise;
+      }
+
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      fullSyncController = controller;
+      fullSyncPromise = fetchAllDataFromServer({
+        signal: controller?.signal || null,
+        silentStatus: options.silentStatus === true
+      }).finally(() => {
+        fullSyncPromise = null;
+        fullSyncController = null;
+      });
+      return fullSyncPromise;
+    }
+
+    function cancelFullSync(reason = 'manual') {
+      if (!fullSyncController) return false;
+      dbg(`[同步] 取消完整同步 (${reason})`);
+      fullSyncController.abort();
+      return true;
     }
 
   function analyzeStudentData(roomsData) {
@@ -6570,11 +7298,12 @@
       const cutoff = new Date(now);
       cutoff.setHours(21, 30, 0, 0);
 
-      const logs = (appState.practiceLogsNormalized || appState.practiceLogs || []).filter(l=> sameStudentName(l.student_name || l.student || l.studentName, studentName));
-      if(!logs.length) return {active:false};
       const today = new Date(); today.setHours(0,0,0,0);
       const nextDay = new Date(today.getTime()+86400000);
-      const todayLogs = logs.filter(l=>{ const d=new Date(l.timestamp); return d>=today && d<nextDay; }).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
+      const todayKey = utils.getDateKey(today);
+      const todayLogs = getPracticeLogsForDate(studentName, todayKey)
+        .filter(l => { const d = new Date(l.timestamp); return d >= today && d < nextDay; })
+        .sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
       if(!todayLogs.length) return {active:false};
       // 核心：寻找最后一个 assign 未被其后的 clear 匹配
       let stack=[]; // 允许嵌套但基本不会发生；用栈保证顺序
@@ -6764,10 +7493,7 @@
         return { in: 0, out: 0 };
       }
       
-      const studentLogs = appState.practiceLogs.filter(log => {
-        const logStudentName = log.student_name || log.student || log.studentName;
-        return sameStudentName(logStudentName, studentName) && utils.getDateKey(new Date(log.timestamp)) === dateKey;
-      });
+      const studentLogs = getPracticeLogsForDate(studentName, dateKey);
 
       if (studentLogs.length === 0) {
         return { in: 0, out: 0 };
@@ -7650,7 +8376,7 @@
         renderHomeBins();
         
         // 返回首页时刷新当前真实线上榜单（五类榜单）
-        if (window.__leaderboardSyncSystem) {
+        if (isCoreDataReady && window.__leaderboardSyncSystem) {
           setTimeout(() => {
             window.__leaderboardSyncSystem.updateAllLeaderboards();
           }, 300); // 延迟300ms，避免阻塞动画
@@ -13178,6 +13904,8 @@
     }
 
     function pauseHiddenPageTimers(reason = 'hidden') {
+      const cancelled = cancelFullSync(`page-${reason}`);
+      if (cancelled) markPendingVisibilityRefresh('full-sync-cancelled');
       clearRealtimeReconnectTimer();
       stopFallbackPolling();
       healthMonitor.stopMonitoring();
@@ -13186,12 +13914,13 @@
       dbg(`[visibility] 已暂停后台定时器 (${reason})`);
     }
 
-    async function resumeVisiblePageTimers(reason = 'visible') {
+    async function resumeVisiblePageTimers(reason = 'visible', options = {}) {
+      const { skipDataRefresh = false } = options;
       clearVisibilityPauseTimer();
       if (!isPageVisible || !isConnected) return;
 
-      const forceRefresh = realtimeSubscriptionStatus !== 'SUBSCRIBED';
-      await flushPendingVisibilityRefresh(forceRefresh);
+      const forceRefresh = !skipDataRefresh && realtimeSubscriptionStatus !== 'SUBSCRIBED';
+      if (!skipDataRefresh) await flushPendingVisibilityRefresh(forceRefresh);
 
       if (navigator.onLine) {
         if (realtimeSubscriptionStatus !== 'SUBSCRIBED') {
@@ -13686,23 +14415,43 @@
       setupSwipeGestures();
 
       try {
-        setConnectionStatus('connecting', '正在连接...');
+        const hasCachedData = restoreCoreSyncCache();
+        setConnectionStatus(
+          hasCachedData ? 'online' : 'connecting',
+          hasCachedData ? '已显示缓存 · 正在连接...' : '正在连接...'
+        );
 
-        const connected = await initializeSupabase();
+        const connected = await initializeSupabase({ silentStatus: hasCachedData });
         dbg('Supabase 连接结果:', connected);
 
         if (!connected) {
-          setConnectionStatus('offline', '连接失败');
+          setConnectionStatus('offline', hasCachedData ? '连接失败 · 使用缓存' : '连接失败');
           return;
         }
 
-        setConnectionStatus('syncing', '加载数据...');
-        await fetchAllData();
+        if (hasCachedData) setConnectionStatus('online', '已显示缓存 · 正在更新...');
+        else setConnectionStatus('syncing', '加载数据...');
+        let initialSyncFailed = false;
+        try {
+          await fetchAllData({ silentStatus: hasCachedData });
+        } catch (error) {
+          initialSyncFailed = true;
+          dbg('[初始化] 同步失败，继续启动实时链路:', error?.message || error);
+        }
 
-        await resumeVisiblePageTimers('initialize');
+        await resumeVisiblePageTimers('initialize', { skipDataRefresh: true });
         setupTimelineWebSocket();
 
-        setConnectionStatus('online', '已连接');
+        if (initialSyncFailed) {
+          setConnectionStatus('online', hasCachedData ? '实时连接 · 使用缓存' : '实时连接 · 等待数据');
+          setTimeout(() => {
+            if (!isConnected || !navigator.onLine || document.hidden) return;
+            setConnectionStatus('syncing', '正在重试同步...');
+            void fetchAllData().catch(() => {});
+          }, 5000);
+        } else {
+          setConnectionStatus('online', hasCachedData ? '数据已更新' : '已连接');
+        }
         dbg(`应用初始化完成，耗时: ${(performance.now() - startTime).toFixed(2)}ms`);
       } catch (error) {
         console.error('应用初始化失败:', error);
@@ -14125,9 +14874,18 @@
             { data: declineData, error: declineError },
             { data: shrinkSummaryData, error: shrinkSummaryError }
           ] = await Promise.all([
-            supabaseClient.rpc('get_weekly_leaderboards'),
-            supabaseClient.rpc('get_weekly_decline_leaderboard'),
-            supabaseClient.rpc('get_weekly_shrink_summary')
+            runSupabaseRequest(() => supabaseClient.rpc('get_weekly_leaderboards'), {
+              label: '综合榜加载',
+              timeoutMs: SUPABASE_REQUEST_TIMEOUT_MS
+            }),
+            runSupabaseRequest(() => supabaseClient.rpc('get_weekly_decline_leaderboard'), {
+              label: '缩水榜加载',
+              timeoutMs: SUPABASE_REQUEST_TIMEOUT_MS
+            }),
+            runSupabaseRequest(() => supabaseClient.rpc('get_weekly_shrink_summary'), {
+              label: '缩水榜汇总加载',
+              timeoutMs: SUPABASE_REQUEST_TIMEOUT_MS
+            })
           ]);
           if (error) throw error;
           if (declineError) {
@@ -14168,8 +14926,6 @@
 
           console.warn('[wlb] 加载失败:', e);
           _wlbLastError = e;
-          _wlbData = {};
-          _wlbDataSignature = '';
           _wlbLastLoadedAt = 0;
 
           if (section) section.style.display = 'block';
