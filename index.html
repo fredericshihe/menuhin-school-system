@@ -1182,18 +1182,6 @@
     letter-spacing: -.04em;
   }
 
-  .target-explain-hero-main,
-  .target-explain-hero-unit {
-    white-space: nowrap;
-  }
-
-  .target-explain-hero-unit {
-    font-size: .58em;
-    font-weight: 750;
-    letter-spacing: -.02em;
-    opacity: .88;
-  }
-
   .target-explain-hero-period {
     margin-top: 5px;
     font-size: 12px;
@@ -4465,6 +4453,8 @@
         word-break: break-word;
       }
 
+      .target-explain-hero-value { gap: 0 7px; }
+
       .target-explain-hero-period {
         line-height: 1.5;
       }
@@ -4515,7 +4505,7 @@
       .timeline-title-wrap h3,
       .history-head h3 { font-size: 16px; }
       .target-explain-quick { grid-template-columns: 1fr; }
-      .target-explain-hero-value { font-size: 24px; }
+      .target-explain-hero-value { font-size: 24px; gap: 0 6px; }
     }
   </style>
 </head>
@@ -9598,7 +9588,11 @@
 
     function formatTargetMinutes(minutes) {
       const value = Math.max(0, Math.round(Number(minutes) || 0));
-      return `${utils.formatDurationHoursMinutes(value)}（${value} 分钟）`;
+      return value >= 60 ? utils.formatDurationHoursMinutes(value) : `${value}分钟`;
+    }
+
+    function formatTargetMinutesHero(minutes) {
+      return formatTargetMinutes(minutes);
     }
 
     function getTargetReferenceGroupLabel(source) {
@@ -9694,7 +9688,7 @@
           <div class="lb-section">
             <div class="target-explain-hero">
               <div class="target-explain-hero-name">${safeStudentName} · 本周个人目标</div>
-              <div class="target-explain-hero-value">${formatTargetMinutes(current)}</div>
+              <div class="target-explain-hero-value">${formatTargetMinutesHero(current)}</div>
               <div class="target-explain-hero-period">适用时间：${weekStart}至${weekEnd}，本周内保持不变</div>
             </div>
             <div class="target-explain-quick">
