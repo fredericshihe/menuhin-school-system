@@ -2704,9 +2704,21 @@
     font-size: 11px;
     color: var(--text-3);
   }
+  .wlb-period-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px 0;
+  }
+  .wlb-period-label {
+    font-size: 12px;
+    color: var(--text-2);
+    line-height: 1.5;
+  }
   /* Tab bar */
   .wlb-tabs {
     display: flex;
+    align-items: center;
     gap: 4px;
     padding: 10px 12px 0;
     overflow-x: auto;
@@ -2730,6 +2742,39 @@
     background: var(--brand-600);
     border-color: var(--brand-600);
     color: #fff;
+  }
+  .wlb-period-tabs {
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: 2px;
+    margin-right: 4px;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface-0);
+  }
+  .wlb-period-tab {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 5px 12px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-3);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: none;
+    background-image: none;
+  }
+  .wlb-period-tab.active {
+    background: var(--brand-600);
+    color: #fff;
+  }
+  .wlb-period-tab:focus-visible {
+    outline: 2px solid var(--brand-600);
+    outline-offset: 2px;
   }
   /* Sub-title */
   .wlb-subtitle {
@@ -4552,7 +4597,7 @@
           <div class="wlb-header">
             <div class="wlb-title-wrap">
               <span class="panel-eyebrow">Weekly leaderboard</span>
-              <span class="wlb-title">本周成长舞台</span>
+              <span class="wlb-title">成长舞台</span>
               <span class="wlb-updated" id="wlbUpdated"></span>
             </div>
             <div class="wlb-actions">
@@ -4563,6 +4608,13 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>
               </button>
             </div>
+          </div>
+          <div class="wlb-period-row">
+            <div class="wlb-period-tabs" aria-label="榜单周期">
+              <button type="button" class="wlb-period-tab active" data-period="current" aria-pressed="true">本周</button>
+              <button type="button" class="wlb-period-tab" data-period="previous" aria-pressed="false">上周</button>
+            </div>
+            <span class="wlb-period-label" id="wlbPeriodLabel"></span>
           </div>
           <div class="wlb-tabs" aria-label="排行榜类别">
             <button type="button" class="wlb-tab active" data-board="综合榜">综合</button>
@@ -8808,6 +8860,11 @@
       });
 
       const wlbTabs = document.querySelector('.wlb-tabs');
+      document.querySelectorAll('.wlb-period-tab').forEach(tab => {
+        if (tab.__staticUiBound) return;
+        tab.addEventListener('click', () => switchWlbPeriod(tab.dataset.period));
+        tab.__staticUiBound = true;
+      });
       if (wlbTabs && !wlbTabs.__staticUiBound) {
         const switchTabFromTarget = (target) => {
           if (!target || typeof target.closest !== 'function') return;
@@ -14569,6 +14626,8 @@
     let _wlbNeedsRefresh = false;
     let _wlbLastLoadedAt = 0;
     let _wlbDataSignature = '';
+    let _wlbPeriod = 'current';
+    let _wlbPrevious = null;
     let _coinRewardSettingPromise = null;
     let _coinRewardEnabled = true;
     let _wlbSettlement = null;
@@ -14647,8 +14706,19 @@
     }
 
     function updateWlbUpdatedLabel(ts = Date.now()) {
+      const monday = getWlbPeriodMonday();
+      const periodLabel = document.getElementById('wlbPeriodLabel');
+      if (periodLabel) periodLabel.textContent = formatWlbPeriodRange(monday);
       const upd = document.getElementById('wlbUpdated');
       if (!upd) return;
+      if (_wlbPeriod === 'previous') {
+        const state = getPreviousWlbState();
+        if (state.loading) upd.textContent = '正在读取上周最终结果';
+        else if (state.error) upd.textContent = '上周结果加载失败';
+        else if (state.loaded && Object.keys(state.data).length) upd.textContent = '最终锁榜 · 发币按此榜';
+        else upd.textContent = '上周暂无锁榜记录';
+        return;
+      }
       if (_wlbSettlement) {
         upd.textContent = '21:30 已锁定 · 发币按此榜';
         return;
@@ -14660,7 +14730,7 @@
     function renderWlbShrinkSummary(summary = _wlbShrinkSummary) {
       const el = document.getElementById('wlbShrinkSummary');
       if (!el) return;
-      if (_wlbActiveTab !== '缩水榜') {
+      if (_wlbPeriod !== 'current' || _wlbActiveTab !== '缩水榜') {
         el.style.display = 'none';
         return;
       }
@@ -14678,7 +14748,7 @@
     function applyCoinRewardSetting(enabled) {
       _coinRewardEnabled = enabled !== false;
       const noticeEl = document.getElementById('wlbCoinRewardNotice');
-      if (noticeEl) noticeEl.style.display = _coinRewardEnabled ? 'none' : 'block';
+      if (noticeEl) noticeEl.style.display = _wlbPeriod === 'previous' || _coinRewardEnabled ? 'none' : 'block';
     }
 
     async function loadCoinRewardSetting(options = {}) {
@@ -14779,7 +14849,13 @@
     const WLB_CHEVRON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>`;
 
     function renderWlbBoard(board) {
-      const rows = _wlbData[board] || [];
+      const previous = _wlbPeriod === 'previous' ? getPreviousWlbState() : null;
+      if (previous && !previous.loaded && !previous.loading && !previous.error) {
+        void loadPreviousWeeklyLeaderboards();
+      }
+      const rows = (previous ? previous.data : _wlbData)[board] || [];
+      const displayError = previous ? previous.error : _wlbLastError;
+      updateWlbUpdatedLabel(_wlbLastLoadedAt || Date.now());
       const listEl = document.getElementById('wlbList');
       const subEl  = document.getElementById('wlbSubtitle');
       const noticeEl = document.getElementById('wlbNotice');
@@ -14787,13 +14863,15 @@
       if (!listEl) return;
       bindWlbListDelegation(listEl);
       if (!rows.length) {
-        if (noticeEl && _wlbLastError) {
+        if (noticeEl && displayError) {
           noticeEl.style.display = 'block';
           noticeEl.textContent = '排行榜加载失败，请稍后重试';
         } else if (noticeEl) {
           noticeEl.style.display = 'none';
         }
-        listEl.innerHTML = `<div class="wlb-empty">${_wlbLastError ? '暂时无法加载' : '本周暂无上榜学生'}</div>`;
+        listEl.innerHTML = previous?.loading
+          ? '<div class="wlb-loading" role="status"><span class="spin-sm"></span> 正在读取上周最终结果…</div>'
+          : `<div class="wlb-empty">${displayError ? '暂时无法加载，请再次点击所选周期重试' : previous ? '上周暂无该榜单的锁榜记录' : '本周暂无上榜学生'}</div>`;
         return;
       }
       if (noticeEl) noticeEl.style.display = 'none';
@@ -14846,6 +14924,97 @@
       renderWlbBoard(board);
     }
 
+    function getWlbPeriodMonday(period = _wlbPeriod, baseDate = new Date()) {
+      const bjtDate = getBjtDateKey(baseDate);
+      const [year, month, day] = bjtDate.split('-').map(Number);
+      const calendarDate = new Date(Date.UTC(year, month - 1, day));
+      const weekday = calendarDate.getUTCDay();
+      const offset = (weekday === 0 ? -6 : 1 - weekday) + (period === 'previous' ? -7 : 0);
+
+      calendarDate.setUTCDate(calendarDate.getUTCDate() + offset);
+      return calendarDate.toISOString().slice(0, 10);
+    }
+
+    function formatWlbPeriodRange(weekMonday) {
+      const [year, month, day] = weekMonday.split('-').map(Number);
+      const start = new Date(Date.UTC(year, month - 1, day));
+      const end = new Date(start);
+      end.setUTCDate(end.getUTCDate() + 4);
+      const format = date => `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}`;
+      return `${format(start)} – ${format(end)}`;
+    }
+
+    function switchWlbPeriod(period) {
+      if (!['current', 'previous'].includes(period)) return;
+      _wlbPeriod = period;
+
+      document.querySelectorAll('.wlb-period-tab').forEach(tab => {
+        const selected = tab.getAttribute('data-period') === period;
+        tab.classList.toggle('active', selected);
+        tab.setAttribute('aria-pressed', String(selected));
+      });
+
+      _wlbExpanded[_wlbActiveTab] = false;
+      applyCoinRewardSetting(_coinRewardEnabled);
+      renderWlbShrinkSummary();
+
+      if (period === 'previous') {
+        void loadPreviousWeeklyLeaderboards();
+      } else {
+        void loadWeeklyLeaderboards({ force: true, reason: 'period-switch' });
+      }
+
+      renderWlbBoard(_wlbActiveTab);
+    }
+
+    function getPreviousWlbState() {
+      const weekMonday = getWlbPeriodMonday('previous');
+      if (!_wlbPrevious || _wlbPrevious.weekMonday !== weekMonday) {
+        _wlbPrevious = {
+          weekMonday,
+          data: {},
+          loaded: false,
+          loading: false,
+          error: null,
+          promise: null
+        };
+      }
+      return _wlbPrevious;
+    }
+
+    async function loadPreviousWeeklyLeaderboards() {
+      const state = getPreviousWlbState();
+      if (state.loaded) return state.data;
+      if (state.promise) return state.promise;
+
+      state.loading = true;
+      state.error = null;
+      state.promise = (async () => {
+        try {
+          const { data, error } = await runSupabaseRequest(
+            () => supabaseClient.rpc('get_weekly_leaderboard_settlement_snapshot', {
+              p_week_monday: state.weekMonday
+            }),
+            { label: '上周锁榜快照加载', timeoutMs: SUPABASE_REQUEST_TIMEOUT_MS }
+          );
+          if (error) throw error;
+          state.data = groupWeeklyLeaderboards(data || []);
+          state.loaded = true;
+        } catch (error) {
+          state.error = error;
+        } finally {
+          state.loading = false;
+          state.promise = null;
+          if (_wlbPeriod === 'previous' && state === getPreviousWlbState()) {
+            renderWlbBoard(_wlbActiveTab);
+          }
+        }
+        return state.data;
+      })();
+
+      return state.promise;
+    }
+
     function refreshCurrentStudentDetailAfterWlb() {
       try {
         if (uiState.view === 'detail' && uiState.selectedStudent) {
@@ -14857,7 +15026,7 @@
     }
 
     async function loadWlbRowsForDisplay() {
-      const weekMonday = utils.toIsoDate(getCurrentWeekMondayDate());
+      const weekMonday = getWlbPeriodMonday('current');
       try {
         const { data: statusData, error: statusError } = await runSupabaseRequest(
           () => supabaseClient.rpc('get_weekly_leaderboard_settlement_status', {
@@ -14949,6 +15118,12 @@
             settlement
           } = leaderboardResult;
           if (error) throw error;
+          const previousSettlementKey = _wlbSettlement
+            ? `${_wlbSettlement.week_monday || ''}|${_wlbSettlement.locked_at || ''}`
+            : '';
+          const nextSettlementKey = settlement
+            ? `${settlement.week_monday || ''}|${settlement.locked_at || ''}`
+            : '';
           _wlbSettlement = settlement;
           if (declineError) {
             console.warn('[wlb] 缩水榜 RPC 暂不可用:', declineError);
@@ -14962,7 +15137,9 @@
 
           const nextData = groupWeeklyLeaderboards([...(data || []), ...(declineData || [])]);
           const nextSignature = buildWeeklyLeaderboardSignature(nextData);
-          const changed = nextSignature !== _wlbDataSignature || !!_wlbLastError;
+          const changed = nextSignature !== _wlbDataSignature ||
+            previousSettlementKey !== nextSettlementKey ||
+            !!_wlbLastError;
 
           _wlbLastError = null;
           _wlbData = nextData;
