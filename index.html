@@ -1112,6 +1112,22 @@
     font-weight: 700;
   }
 
+  .detail-sync-note {
+    display: block;
+    margin: 10px 0 0;
+    padding: 4px 0;
+    border: 0;
+    background: none;
+    color: var(--text-2);
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .detail-sync-note[data-state="error"],
+  .detail-sync-note[data-state="offline"] { color: var(--warning, #b45309); }
+
   .status-progress-rate {
     font-size: 20px;
     font-weight: 800;
@@ -5007,6 +5023,7 @@
                 <span class="status-source-note-icon" aria-hidden="true">✓</span>
                 <span><strong>更接近实际练琴：</strong>这里不是登记占用时长，而是按后端计分规则处理后的有效时长。未还卡部分仅作预计，单次最多暂计 120 分钟。</span>
               </div>
+              <button type="button" id="studentProgressSync" class="detail-sync-note" aria-live="polite">正在同步…</button>
             </div>
           </div>
 
@@ -5089,7 +5106,9 @@
   const REALTIME_LOG_THROTTLE_MS = 2000; // 原 8s -> 4s -> 2s 进一步优化时间轴实时性
   const HIDDEN_PAGE_DELAY_MS = 10000;    // 原隐藏30s -> 10s
   const FALLBACK_POLL_INTERVAL_MS = 60000; // 兜底轮询 60s
+  const STUDENT_POLL_INTERVAL_MS = 15000;
   let fallbackPollTimer = null;
+  let lastSchoolPollAt = 0;
 
   // 去重辅助: 维护已知日志 id 集合 (若表有 id)
   if(!window._knownPracticeLogIds) window._knownPracticeLogIds = new Set();
@@ -5149,8 +5168,13 @@
     if(fallbackPollTimer || !isConnected || document.hidden) return;
     fallbackPollTimer = setInterval(()=>{
       if(!navigator.onLine || document.hidden) return;
-      fetchDataWithDiff('practice_logs');
-    }, FALLBACK_POLL_INTERVAL_MS);
+      if (uiState.view === 'detail' && uiState.selectedStudent) {
+        void refreshStudentPracticeData(uiState.selectedStudent, { force: true });
+      } else if (Date.now() - lastSchoolPollAt >= FALLBACK_POLL_INTERVAL_MS) {
+        lastSchoolPollAt = Date.now();
+        void fetchDataWithDiff('practice_logs');
+      }
+    }, STUDENT_POLL_INTERVAL_MS);
   }
 
   function stopFallbackPolling(){
@@ -5542,6 +5566,10 @@
     let isCoreDataReady = false;
     let diffSyncPromise = null;
     const pendingDiffTables = new Set();
+    let practiceLogRevision = 0;
+    const practiceLogChanges = new Map();
+    const studentPracticeRequests = new Map();
+    const studentPracticeSyncedAt = new Map();
 
     const appState = {
       students: new Map(), // studentName -> StudentData
@@ -5887,14 +5915,15 @@
       const candidates = getStudentNameCandidates(studentName);
 
       for (const candidate of candidates) {
-        const { data, error } = await supabaseClient.rpc('get_student_week_progress_context', {
+        const { data, error } = await runSupabaseRequest(() => supabaseClient.rpc('get_student_week_progress_context', {
           p_student_name: candidate,
           p_week_monday: weekMonday,
           p_as_of_date: asOfDate
-        });
+        }), { label: '个人练琴进度', timeoutMs: 8000 });
         if (error) {
           console.warn('fetchUnifiedWeekProgressMetrics error:', error);
-          continue;
+          if (error.code === 'PGRST202' || error.code === '42883') return null;
+          throw error;
         }
 
         const row = Array.isArray(data) ? (data[0] || null) : (data || null);
@@ -6290,6 +6319,168 @@
       return practiceLogIndex.get(`${normalizedName}|${dateKey}`) || [];
     }
 
+    function practiceLogKey(row) {
+      return row.id != null ? String(row.id)
+        : [getLogStudentName(row), row.action, row.timestamp, row.room_name].join('|');
+    }
+
+    function reconcilePracticeLogSnapshot(rows, revision, studentName = null) {
+      const merged = new Map();
+      if (studentName) {
+        (appState.practiceLogs || []).forEach(row => {
+          if (!sameStudentName(getLogStudentName(row), studentName)) merged.set(practiceLogKey(row), row);
+        });
+      }
+      (rows || []).forEach(row => merged.set(practiceLogKey(row), row));
+      const cutoff = Date.now() - 8 * 86400000;
+      practiceLogChanges.forEach((change, key) => {
+        if (change.receivedAt < cutoff) {
+          practiceLogChanges.delete(key);
+          return;
+        }
+        if (change.revision <= revision) return;
+        if (change.row) merged.set(key, change.row);
+        else merged.delete(key);
+      });
+      return Array.from(merged.values()).filter(row => new Date(row.timestamp).getTime() >= cutoff);
+    }
+
+    function installPracticeLogs(rows) {
+      window.practiceLogsData = rows;
+      appState.practiceLogs = rows;
+      appState.practiceLogsNormalized = rows.map(row => ({
+        ...row,
+        student_name: getLogStudentName(row),
+        room_name: row.room_name || row.room || row.roomName || '',
+        action: (row.action || '').toLowerCase(),
+        session_start: row.session_start || row.start_time || null,
+        session_end: row.session_end || row.end_time || null,
+        practice_duration: row.practice_duration ?? row.duration ?? null
+      }));
+      rebuildPracticeLogIndex(rows);
+      window._knownPracticeLogIds = new Set(rows.map(row => row.id).filter(id => id != null));
+    }
+
+    function recordPracticeLogSnapshotChanges(previousRows, nextRows) {
+      const previous = new Map(previousRows.map(row => [practiceLogKey(row), row]));
+      const next = new Map(nextRows.map(row => [practiceLogKey(row), row]));
+      new Set([...previous.keys(), ...next.keys()]).forEach(key => {
+        const before = previous.get(key);
+        const after = next.get(key);
+        if (calculateDataHash(before ? [before] : [], 'practice_logs') ===
+            calculateDataHash(after ? [after] : [], 'practice_logs')) return;
+        practiceLogChanges.set(key, { revision: ++practiceLogRevision, row: after || null, receivedAt: Date.now() });
+      });
+    }
+
+    function refreshStudentPracticeView(studentName) {
+      studentName = resolveStudentName(studentName);
+      if (!appState.studentsMeta.has(studentName)) return;
+      const previous = appState.students.get(studentName);
+      const preview = getLiveSessionOverlayMinutes(previous);
+      const student = new StudentData(studentName);
+      const logs = appState.practiceLogsNormalized.filter(row => sameStudentName(row.student_name, studentName));
+      processStudentLogs(student, logs);
+      appState.students.set(studentName, student);
+      deriveCurrentSessionForStudent(studentName);
+      const cache = getCurrentProgressCache(studentName);
+      if (cache && previous?.currentStartTime &&
+          new Date(previous.currentStartTime).getTime() !== new Date(student.currentStartTime).getTime()) {
+        cache.pendingTodayMinutes = (cache.pendingTodayMinutes || 0) + preview.todayOverlayMinutes;
+        cache.pendingWeeklyMinutes = (cache.pendingWeeklyMinutes || 0) + preview.weeklyOverlayMinutes;
+      }
+      if (isSelectedDetailStudent(studentName)) {
+        updateTodayTimeline(studentName);
+        applyLiveProgressMetrics(studentName);
+      }
+    }
+
+    function invalidateStudentProgress(studentName) {
+      studentName = resolveStudentName(studentName);
+      studentProgressVersions.set(studentName, (studentProgressVersions.get(studentName) || 0) + 1);
+      studentPracticeSyncedAt.delete(studentName);
+      const pending = studentPracticeRequests.get(studentName);
+      if (pending) pending.dirty = true;
+    }
+
+    function applyPracticeLogChange(payload) {
+      const row = payload.eventType === 'DELETE' ? payload.old : payload.new;
+      if (!row || (row.id == null && (!row.timestamp || !getLogStudentName(row)))) return false;
+      const key = practiceLogKey(row);
+      const previous = (appState.practiceLogs || []).find(log => practiceLogKey(log) === key);
+      const next = payload.eventType === 'DELETE' ? null : { ...previous, ...row };
+      if (next && (!next.timestamp || !getLogStudentName(next) || !next.action)) return false;
+      if (next && previous && JSON.stringify(previous) === JSON.stringify(next)) return true;
+      practiceLogChanges.set(key, { revision: ++practiceLogRevision, row: next, receivedAt: Date.now() });
+      const rows = (appState.practiceLogs || []).filter(log => practiceLogKey(log) !== key);
+      if (next) rows.push(next);
+      installPracticeLogs(rows);
+      const affected = new Set([getLogStudentName(previous || payload.old || {}), getLogStudentName(next || {})].filter(Boolean));
+      affected.forEach(studentName => {
+        invalidateStudentProgress(studentName);
+        refreshStudentPracticeView(studentName);
+        if (isPageVisible && isSelectedDetailStudent(studentName)) scheduleSelectedPracticeRefresh(studentName);
+      });
+      if (!affected.size) return false;
+      if (isPageVisible && uiState.view === 'home') debouncedRenderHomeBins();
+      if (isPageVisible && uiState.view === 'list') renderStudentList(uiState.category);
+      return true;
+    }
+
+    const scheduleSelectedPracticeRefresh = debounce(studentName => {
+      if (isPageVisible && isSelectedDetailStudent(studentName)) {
+        void refreshStudentPracticeData(studentName, { force: true });
+      }
+    }, 250);
+
+    async function refreshStudentPracticeData(studentName, { force = false } = {}) {
+      studentName = resolveStudentName(studentName);
+      if (!isConnected || !isSelectedDetailStudent(studentName) || document.hidden) return;
+      applyLiveProgressMetrics(studentName);
+      if (!navigator.onLine) {
+        setStudentProgressSyncStatus(studentName, 'offline');
+        return;
+      }
+      const pending = studentPracticeRequests.get(studentName);
+      if (pending) {
+        if (force) pending.dirty = true;
+        return pending.promise;
+      }
+      if (!force && getCurrentProgressCache(studentName) &&
+          Date.now() - (studentPracticeSyncedAt.get(studentName) || 0) < STUDENT_POLL_INTERVAL_MS) return;
+      const state = { dirty: false, promise: null };
+      studentPracticeRequests.set(studentName, state);
+      state.promise = (async () => {
+        do {
+          state.dirty = false;
+          setStudentProgressSyncStatus(studentName, 'loading');
+          const revision = practiceLogRevision;
+          const candidates = getStudentNameCandidates(studentName);
+          const rows = await fetchAllRowsPaginated({
+            table: 'practice_logs',
+            select: 'id,action,room_name,student_name,timestamp,session_start,session_end,practice_duration',
+            orderBy: 'timestamp',
+            timeoutMs: 8000,
+            apply: query => query.in('student_name', candidates)
+              .gte('timestamp', new Date(Date.now() - 8 * 86400000).toISOString())
+          });
+          const merged = reconcilePracticeLogSnapshot(rows, revision, studentName);
+          if (calculateDataHash(merged, 'practice_logs') !== calculateDataHash(appState.practiceLogs, 'practice_logs')) {
+            studentProgressVersions.set(studentName, (studentProgressVersions.get(studentName) || 0) + 1);
+            recordPracticeLogSnapshotChanges(appState.practiceLogs, merged);
+            installPracticeLogs(merged);
+            refreshStudentPracticeView(studentName);
+          }
+          const updated = await updateTargetProgress(studentName, { force: true });
+          if (updated) studentPracticeSyncedAt.set(studentName, Date.now());
+        } while (state.dirty && isPageVisible && navigator.onLine && isSelectedDetailStudent(studentName));
+      })().catch(error => {
+        console.warn('[个人练琴同步] 暂时失败，保留已有数据:', error?.message || error);
+        setStudentProgressSyncStatus(studentName, navigator.onLine ? 'error' : 'offline');
+      }).finally(() => studentPracticeRequests.delete(studentName));
+      return state.promise;
+    }
+
     function trimSyncCacheRows(rows, maxRows) {
       if (!Array.isArray(rows)) return [];
       return rows.length > maxRows ? rows.slice(-maxRows) : rows;
@@ -6480,7 +6671,7 @@
         let keyFields;
         switch (tableName) {
           case 'practice_logs':
-            keyFields = ['id', 'timestamp', 'student_name', 'room_name'];
+            keyFields = ['id', 'timestamp', 'student_name', 'room_name', 'action', 'session_start', 'session_end', 'practice_duration'];
             break;
           case 'student_database':
             keyFields = ['name', 'major', 'grade'];
@@ -6547,13 +6738,18 @@
 
       diffSyncPromise = (async () => {
         while (pendingDiffTables.size) {
+          if (fullSyncPromise) {
+            try { await fullSyncPromise; } catch (_) {}
+          }
+          if (!isConnected || !navigator.onLine || document.hidden) return false;
           const batch = Array.from(pendingDiffTables);
           pendingDiffTables.clear();
-          if (fullSyncPromise) {
-            await fullSyncPromise;
-            continue;
+          try {
+            await fetchDataWithDiffBatch(batch);
+          } catch (error) {
+            batch.forEach(table => pendingDiffTables.add(table));
+            throw error;
           }
-          await fetchDataWithDiffBatch(batch);
         }
       })().catch(error => {
         console.warn('[差异同步] 已结束但未完成:', error?.message || error);
@@ -6561,7 +6757,7 @@
       }).finally(() => {
         diffSyncPromise = null;
         if (pendingDiffTables.size && isConnected && navigator.onLine && !document.hidden) {
-          setTimeout(() => { void fetchDataWithDiff([]); }, 1000);
+          setTimeout(() => { void fetchDataWithDiff([]); }, STUDENT_POLL_INTERVAL_MS);
         }
       });
       return diffSyncPromise;
@@ -6570,8 +6766,7 @@
     async function fetchDataWithDiffBatch(tables) {
       if (!isConnected) return;
       if (fullSyncPromise) {
-        await fullSyncPromise;
-        return;
+        try { await fullSyncPromise; } catch (_) {}
       }
       
       const tablesToSync = Array.isArray(tables) ? tables : [tables];
@@ -6582,6 +6777,7 @@
         
         for (const table of tablesToSync) {
           let data;
+          const snapshotRevision = practiceLogRevision;
           
           // ✅ 根据表类型获取完整结构化数据（与fetchAllData保持一致）
           switch (table) {
@@ -6635,6 +6831,8 @@
               break;
           }
           
+          if (table === 'practice_logs') data = reconcilePracticeLogSnapshot(data, snapshotRevision);
+
           // 检查是否需要更新
           if (needsDataUpdate(table, data)) {
             hasChanges = true;
@@ -6830,6 +7028,7 @@
     
     // ==== 原始数据获取函数（完整同步） ====
     async function fetchAllDataFromServer({ signal = null, silentStatus = false } = {}) {
+      const snapshotRevision = practiceLogRevision;
       dbg('=== fetchAllData 开始执行 ===');
       if (!isConnected) {
         dbg('fetchAllData: 连接未建立，跳过');
@@ -6897,7 +7096,7 @@
         dbg('时间段数据数量:', Array.isArray(slotsData) ? slotsData.length : 0);
         
         // 存储到全局变量以供差异同步使用
-        window.practiceLogsData = logsData || [];
+        window.practiceLogsData = reconcilePracticeLogSnapshot(logsData, snapshotRevision);
         window.studentDatabaseData = metaResult.data || [];
         window.studentTimeSlotsData = slotsData || [];
         window.roomsData = roomsResult.data || [];
@@ -6916,7 +7115,7 @@
         needsDataUpdate('rooms', window.roomsData);
         
         // ✅ 数据完整性验证和处理
-        appState.practiceLogs = logsData || [];
+        appState.practiceLogs = window.practiceLogsData;
         rebuildPracticeLogIndex(appState.practiceLogs);
         
         // 📝 练琴日志数据验证和标准化
@@ -9270,7 +9469,7 @@
         if (dailyTargetEl) dailyTargetEl.textContent = '--';
         if (weeklyTargetEl) weeklyTargetEl.textContent = '--';
         if (weeklyTargetAchievedEl) weeklyTargetAchievedEl.textContent = '--';
-        if (todayTotalEl) todayTotalEl.textContent = '0小时0分钟';
+        if (todayTotalEl) todayTotalEl.textContent = '--';
         if (dailyTargetEl) delete dailyTargetEl.dataset.targetMinutes;
         if (weeklyTargetEl) delete weeklyTargetEl.dataset.targetMinutes;
         if (dailyProgressLabelEl) setStatusBadge(dailyProgressLabelEl, '计算中');
@@ -9286,18 +9485,20 @@
       
       // 1. 优先更新当前状态（轻量）
       requestAnimationFrame(() => {
-        updateCurrentStatus(student);
-        updateTargetProgress(studentName);
+        if (!isSelectedDetailStudent(studentName)) return;
+        deriveCurrentSessionForStudent(studentName);
+        applyLiveProgressMetrics(studentName);
+        void refreshStudentPracticeData(studentName);
       });
       
       // 2. 稍后更新今日时间轴（中等）
       setTimeout(() => {
-        updateTodayTimeline(studentName);
+        if (isSelectedDetailStudent(studentName)) updateTodayTimeline(studentName);
       }, 50);
       
       // 3. 延迟更新历史七天总结（较重）
       setTimeout(() => {
-        updateWeekHistory(studentName);
+        if (isSelectedDetailStudent(studentName)) updateWeekHistory(studentName);
       }, 150);
 
       // 4. 更新分数卡片
@@ -9352,6 +9553,8 @@
       if (weekTargetHelpBtn) {
         weekTargetHelpBtn.onclick = () => showWeekTargetExplanation(studentName);
       }
+      const syncButton = document.getElementById('studentProgressSync');
+      if (syncButton) syncButton.onclick = () => refreshStudentPracticeData(studentName, { force: true });
       
       // 绑定刷新时间轴按钮
   // 删除手动刷新按钮（自动实时更新即可）
@@ -9911,6 +10114,8 @@
     }
 
     const liveProgressCache = new Map();
+    const studentProgressRequests = new Map();
+    const studentProgressVersions = new Map();
     const LIVE_SESSION_SCORING_PREVIEW_CAP_MINUTES = 120;
     const LIVE_SESSION_OVERDUE_MINUTES = 180;
 
@@ -10052,7 +10257,7 @@
     }
 
     function applyLiveProgressMetrics(studentName) {
-      const cache = liveProgressCache.get(studentName);
+      const cache = getCurrentProgressCache(studentName);
       const dailyTargetEl = document.getElementById('dailyTarget');
       const weeklyTargetEl = document.getElementById('weeklyTarget');
       const weeklyTargetAchievedEl = document.getElementById('weeklyTargetAchieved');
@@ -10062,12 +10267,16 @@
 
       const student = appState.students.get(studentName);
       const overlay = getLiveSessionOverlayMinutes(student, new Date());
-      const hasLiveScoringPreview = overlay.todayOverlayMinutes > 0;
-      const todayAchievedMinutes = Math.max(0, Math.round((cache.todayBaseMinutes || 0) + overlay.todayOverlayMinutes));
-      const weeklyAchievedMinutes = Math.max(0, Math.round((cache.weeklyBaseMinutes || 0) + overlay.weeklyOverlayMinutes));
+      const hasLiveScoringPreview = overlay.todayOverlayMinutes > 0 || cache.pendingTodayMinutes > 0;
+      const todayAchievedMinutes = Math.max(0, Math.round((cache.todayBaseMinutes || 0) + overlay.todayOverlayMinutes + (cache.pendingTodayMinutes || 0)));
+      const weeklyAchievedMinutes = Math.max(0, Math.round((cache.weeklyBaseMinutes || 0) + overlay.weeklyOverlayMinutes + (cache.pendingWeeklyMinutes || 0)));
 
       todayTotalEl.textContent = utils.formatDurationHoursMinutes(todayAchievedMinutes);
       weeklyTargetAchievedEl.textContent = utils.formatDurationHoursMinutes(weeklyAchievedMinutes);
+      weeklyTargetEl.textContent = Number.isFinite(cache.weeklyTargetMinutes)
+        ? utils.formatDurationHoursMinutes(cache.weeklyTargetMinutes) : '--';
+      if (Number.isFinite(cache.weeklyTargetMinutes)) weeklyTargetEl.dataset.targetMinutes = String(cache.weeklyTargetMinutes);
+      else delete weeklyTargetEl.dataset.targetMinutes;
       dailyTargetEl.textContent = Number.isFinite(cache.dailyTargetMinutes)
         ? utils.formatDurationHoursMinutes(cache.dailyTargetMinutes)
         : '--';
@@ -10141,79 +10350,68 @@
       }
     }
 
-    async function updateTargetProgress(studentName) {
-      const dailyTargetEl = document.getElementById('dailyTarget');
-      const weeklyTargetEl = document.getElementById('weeklyTarget');
-      const weeklyTargetAchievedEl = document.getElementById('weeklyTargetAchieved');
-      const todayTotalEl = document.getElementById('todayTotal');
-      if (!dailyTargetEl || !weeklyTargetEl || !weeklyTargetAchievedEl || !todayTotalEl) return;
-
-      const activeStudent = renderStudentDetail._lastStudent;
-      if (activeStudent !== studentName) return;
-
-      const today = new Date();
-
-      try {
-        const metrics = await fetchBackendWProgressMetrics(studentName, today);
-
-        if (renderStudentDetail._lastStudent !== studentName) return;
-        if (!metrics) {
-          liveProgressCache.delete(studentName);
-          dailyTargetEl.textContent = '--';
-          delete dailyTargetEl.dataset.targetMinutes;
-          todayTotalEl.textContent = '0小时0分钟';
-          weeklyTargetEl.textContent = '--';
-          delete weeklyTargetEl.dataset.targetMinutes;
-          weeklyTargetAchievedEl.textContent = '--';
-          updateDailyProgressUI(0, Number.NaN);
-          updateWeeklyProgressUI(0, Number.NaN);
-          return;
-        }
-
-        const dailyTargetMinutes = Number(metrics.dailyTargetMinutes);
-        const todayAchievedMinutes = Number(metrics.todayAchievedMinutes || 0);
-        const currentWeekAchievedMinutes = Number(metrics.weeklyAchievedMinutes || 0);
-        const weeklyTargetMinutes = Number(metrics.weeklyTargetMinutes);
-
-        dailyTargetEl.textContent = Number.isFinite(dailyTargetMinutes)
-          ? utils.formatDurationHoursMinutes(dailyTargetMinutes)
-          : '--';
-        if (Number.isFinite(dailyTargetMinutes)) {
-          dailyTargetEl.dataset.targetMinutes = String(dailyTargetMinutes);
-        } else {
-          delete dailyTargetEl.dataset.targetMinutes;
-        }
-
-        weeklyTargetEl.textContent = Number.isFinite(weeklyTargetMinutes)
-          ? utils.formatDurationHoursMinutes(weeklyTargetMinutes)
-          : '--';
-        if (Number.isFinite(weeklyTargetMinutes)) {
-          weeklyTargetEl.dataset.targetMinutes = String(weeklyTargetMinutes);
-        } else {
-          delete weeklyTargetEl.dataset.targetMinutes;
-        }
-        liveProgressCache.set(studentName, {
-          isTodayWorkday: !!metrics.isTodayWorkday,
-          todayBaseMinutes: todayAchievedMinutes,
-          weeklyBaseMinutes: currentWeekAchievedMinutes,
-          dailyTargetMinutes,
-          weeklyTargetMinutes,
-          source: metrics.source || 'unknown'
-        });
-        applyLiveProgressMetrics(studentName);
-      } catch (e) {
-        console.error('更新目标进度失败:', e);
-        if (renderStudentDetail._lastStudent !== studentName) return;
+    function getCurrentProgressCache(studentName) {
+      const cache = liveProgressCache.get(studentName);
+      if (cache?.dateKey !== getBjtDateKey(new Date())) {
         liveProgressCache.delete(studentName);
-        dailyTargetEl.textContent = '--';
-        delete dailyTargetEl.dataset.targetMinutes;
-        todayTotalEl.textContent = '0小时0分钟';
-        weeklyTargetEl.textContent = '--';
-        delete weeklyTargetEl.dataset.targetMinutes;
-        weeklyTargetAchievedEl.textContent = '--';
-        updateDailyProgressUI(0, Number.NaN);
-        updateWeeklyProgressUI(0, Number.NaN);
+        return null;
       }
+      return cache;
+    }
+
+    function setStudentProgressSyncStatus(studentName, state) {
+      if (!isSelectedDetailStudent(studentName)) return;
+      const button = document.getElementById('studentProgressSync');
+      if (!button) return;
+      const cached = !!getCurrentProgressCache(studentName);
+      const messages = {
+        loading: cached ? '正在更新，已保留上次进度…' : '正在同步进度…',
+        synced: '已同步',
+        error: cached ? '同步稍慢，已保留上次进度 · 点击重试' : '暂未读到进度 · 点击重试',
+        offline: cached ? '暂时离线，显示上次进度 · 点击重试' : '暂时离线 · 点击重试'
+      };
+      button.textContent = messages[state];
+      button.dataset.state = state;
+    }
+
+    async function updateTargetProgress(studentName, { force = false } = {}) {
+      studentName = resolveStudentName(studentName);
+      applyLiveProgressMetrics(studentName);
+      const cached = getCurrentProgressCache(studentName);
+      if (!force && cached && Date.now() - cached.fetchedAt < STUDENT_POLL_INTERVAL_MS) return true;
+      if (studentProgressRequests.has(studentName)) return studentProgressRequests.get(studentName);
+      const request = (async () => {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const version = studentProgressVersions.get(studentName) || 0;
+          const dateKey = getBjtDateKey(new Date());
+          const metrics = await fetchBackendWProgressMetrics(studentName, new Date());
+          if (dateKey !== getBjtDateKey(new Date())) continue;
+          if (version !== (studentProgressVersions.get(studentName) || 0)) continue;
+          if (!metrics || !Number.isFinite(Number(metrics.weeklyTargetMinutes))) {
+            throw new Error('个人进度暂不可用');
+          }
+          liveProgressCache.set(studentName, {
+            dateKey,
+            fetchedAt: Date.now(),
+            isTodayWorkday: !!metrics.isTodayWorkday,
+            todayBaseMinutes: Number(metrics.todayAchievedMinutes || 0),
+            weeklyBaseMinutes: Number(metrics.weeklyAchievedMinutes || 0),
+            dailyTargetMinutes: Number(metrics.dailyTargetMinutes),
+            weeklyTargetMinutes: Number(metrics.weeklyTargetMinutes),
+            source: metrics.source || 'unknown'
+          });
+          applyLiveProgressMetrics(studentName);
+          setStudentProgressSyncStatus(studentName, 'synced');
+          return true;
+        }
+        throw new Error('练琴记录仍在更新');
+      })().catch(error => {
+        console.warn('个人进度更新失败，保留已有结果:', error?.message || error);
+        setStudentProgressSyncStatus(studentName, navigator.onLine ? 'error' : 'offline');
+        return false;
+      }).finally(() => studentProgressRequests.delete(studentName));
+      studentProgressRequests.set(studentName, request);
+      return request;
     }
 
     // 去重日志：专门针对 assign/clear 操作去重
@@ -11705,7 +11903,17 @@
      */
     function updateRoomStatusIncremental(roomName, newRoomData = null) {
       const cached = roomsCache.get(roomName);
-      const currentRoom = appState.rooms?.find(r => r.name === roomName) || {};
+      const rooms = window.roomsData || [];
+      const previous = rooms.find(room => room.name === roomName) || {};
+      const currentRoom = newRoomData ? { ...previous, ...newRoomData } : previous;
+      if (newRoomData) {
+        window.roomsData = [...rooms.filter(room => room.name !== roomName), currentRoom];
+        const names = new Set([previous.occupant_student_name, currentRoom.occupant_student_name]
+          .flatMap(value => String(value || '').split(',').map(name => name.trim())).filter(Boolean));
+        names.forEach(studentName => {
+          if (isSelectedDetailStudent(studentName)) scheduleSelectedPracticeRefresh(studentName);
+        });
+      }
       
       // 检查是否有变化
       if (cached && roomEqual(cached.info, currentRoom)) {
@@ -12521,16 +12729,15 @@
     let currentDurationTimer = null;
     function startCurrentDurationUpdate() {
       if (currentDurationTimer) return;
-      // ✅ 每30秒更新学生详情页面的当前练琴时长显示
       currentDurationTimer = setInterval(() => {
-        if (uiState.view === 'detail' && uiState.selectedStudent) {
+        if (!document.hidden && uiState.view === 'detail' && uiState.selectedStudent) {
+          deriveCurrentSessionForStudent(uiState.selectedStudent);
           const student = appState.students.get(resolveStudentName(uiState.selectedStudent));
           if (student) {
-            updateCurrentStatus(student);
             applyLiveProgressMetrics(uiState.selectedStudent);
           }
         }
-      }, 30 * 1000); // ✅ 每30秒更新一次，平衡精度与性能
+      }, 1000);
     }
     function stopCurrentDurationUpdate() {
       if (currentDurationTimer) {
@@ -13983,7 +14190,15 @@
       if (!isPageVisible || !isConnected) return;
 
       const forceRefresh = !skipDataRefresh && realtimeSubscriptionStatus !== 'SUBSCRIBED';
-      if (!skipDataRefresh) await flushPendingVisibilityRefresh(forceRefresh);
+      if (!skipDataRefresh) {
+        if (uiState.view === 'detail' && uiState.selectedStudent) {
+          void refreshStudentPracticeData(uiState.selectedStudent, { force: true });
+        }
+        void flushPendingVisibilityRefresh(forceRefresh);
+      }
+
+      startFallbackPolling();
+      if (typeof startWlbPolling === 'function') startWlbPolling();
 
       if (navigator.onLine) {
         if (realtimeSubscriptionStatus !== 'SUBSCRIBED') {
@@ -13992,9 +14207,6 @@
           healthMonitor.startMonitoring();
         }
       }
-
-      startFallbackPolling();
-      if (typeof startWlbPolling === 'function') startWlbPolling();
 
       if (
         navigator.onLine &&
@@ -14105,51 +14317,13 @@
               timestamp: payload.new?.timestamp || payload.old?.timestamp
             });
 
+            const applied = applyPracticeLogChange(payload);
             if (!isPageVisible) {
               markPendingVisibilityRefresh('practice_logs');
-              if (action === 'assign' || action === 'clear') scheduleWlbRefresh(5000, `practice-log-${action}`);
               return;
             }
-
-            if (isSelectedDetailStudent(studentName)) {
-              const updateTime = new Date();
-              const minutesSinceMidnight = updateTime.getHours() * 60 + updateTime.getMinutes();
-              const isInSensitiveWindow = minutesSinceMidnight < 30 || (minutesSinceMidnight >= 420 && minutesSinceMidnight < 450);
-
-              if (!isInSensitiveWindow) {
-                dbg(`🎯 检测到当前学生 ${studentName} 的练琴记录变更，使用增量更新`);
-                setTimeout(() => {
-                  if (!isPageVisible) return;
-                  updateTimelineIncremental(studentName);
-                }, 200);
-              } else {
-                dbg(`⏰ 敏感时间窗口(${updateTime.toTimeString().substring(0, 8)})，延迟处理学生 ${studentName} 的更新`);
-                setTimeout(() => {
-                  if (!isPageVisible) {
-                    markPendingVisibilityRefresh('practice_logs');
-                    return;
-                  }
-                  updateTimelineIncremental(studentName);
-                }, 30000);
-              }
-
-              if (action === 'assign' || action === 'clear' || action === 'enter' || action === 'exit') {
-                setTimeout(() => {
-                  if (!isPageVisible) {
-                    markPendingVisibilityRefresh('practice_logs');
-                    return;
-                  }
-                  realtimeThrottlers.logs();
-                }, 1000);
-              }
-
-              if (action === 'assign' || action === 'clear') {
-                scheduleWlbRefresh(5000, `practice-log-${action}`);
-              }
-              return;
-            }
-
-            realtimeThrottlers.logs();
+            if (!applied) realtimeThrottlers.logs();
+            scheduleWlbRefresh(5000, `practice-log-${action || eventType}`);
           })
           .on('postgres_changes', {
             event: '*',
@@ -14173,6 +14347,8 @@
             }
 
             if (studentName && isSelectedDetailStudent(studentName)) {
+              invalidateStudentProgress(studentName);
+              scheduleSelectedPracticeRefresh(studentName);
               refreshSelectedStudentDetailDebounced(studentName);
             }
             realtimeThrottlers.leaderboard('practice-sessions');
@@ -14199,6 +14375,8 @@
             }
 
             if (studentName && isSelectedDetailStudent(studentName)) {
+              invalidateStudentProgress(studentName);
+              scheduleSelectedPracticeRefresh(studentName);
               refreshSelectedStudentDetailDebounced(studentName);
             }
             realtimeThrottlers.leaderboard('student-baseline');
@@ -14308,7 +14486,7 @@
               updateRoomStatusIncremental(roomName, payload.new);
             }, 200);
 
-            realtimeThrottlers.rooms();
+            if (payload.eventType === 'DELETE' || !payload.new?.name) realtimeThrottlers.rooms();
           })
           .subscribe((status) => {
             realtimeSubscriptionStatus = status;
